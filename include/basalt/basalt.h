@@ -33,6 +33,7 @@
 #include "basalt/widget_painter.h"
 #include "basalt/widget_tree.h"
 #include "basalt/widgets/accordion.h"
+#include "basalt/widgets/avatar.h"
 #include "basalt/widgets/box.h"
 #include "basalt/widgets/button.h"
 #include "basalt/widgets/checkbox.h"

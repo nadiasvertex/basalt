@@ -1,6 +1,7 @@
 add_executable(basalt_tests
   basalt/accessibility_test.cpp
   basalt/accordion_test.cpp
+  basalt/avatar_test.cpp
   basalt/input_probe.h
   basalt/leaf.h
   basalt/color_test.cpp

@@ -50,6 +50,7 @@ add_library(basalt STATIC
   basalt/widgets/text_line.cpp
   basalt/widgets/toggle.cpp
   basalt/widgets/accordion.cpp
+  basalt/widgets/avatar.cpp
   basalt/widgets/popover.cpp
   basalt/widgets/select.cpp
   basalt/widgets/tooltip.cpp)
