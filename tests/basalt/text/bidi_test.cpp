@@ -2,6 +2,8 @@
 
 #include "basalt/text/bidi.h"
 
+#include <string>
+
 using namespace basalt::text;
 
 namespace {
@@ -17,6 +19,27 @@ TEST_CASE("pure left-to-right text is one level-zero run", "[bidi]") {
   CHECK(paragraph.base_level == 0);
   REQUIRE(paragraph.runs.size() == 1);
   CHECK(paragraph.runs[0] == bidi_run{0, 11, 0});
+}
+
+TEST_CASE("every ascii character resolves to one level-zero run", "[bidi]") {
+  auto text = std::string{};
+  for (auto c = 0; c < 0x80; ++c) {
+    text.push_back(static_cast<char>(c));
+    text += "1 ";
+  }
+  for (auto const base : {bidi_base::automatic, bidi_base::left_to_right}) {
+    auto const paragraph = resolve_bidi(text, base);
+    CHECK(paragraph.base_level == 0);
+    REQUIRE(paragraph.runs.size() == 1);
+    CHECK(paragraph.runs[0] == bidi_run{0, text.size(), 0});
+  }
+}
+
+TEST_CASE("ascii text in a right-to-left paragraph keeps its level", "[bidi]") {
+  auto const paragraph = resolve_bidi("abc 123", bidi_base::right_to_left);
+  CHECK(paragraph.base_level == 1);
+  REQUIRE(paragraph.runs.size() == 1);
+  CHECK(paragraph.runs[0] == bidi_run{0, 7, 2});
 }
 
 TEST_CASE("empty text has no runs", "[bidi]") {

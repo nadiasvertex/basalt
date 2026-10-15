@@ -251,7 +251,8 @@ auto text_shaper::shape(std::string_view utf8, shape_options const &options) con
   auto const paragraph = resolve_bidi(utf8, options.direction);
   result.base_level = paragraph.base_level;
   auto const split = segmenter{*fonts_, request, primary};
-  auto const buffer = std::unique_ptr<hb_buffer_t, buffer_deleter>{hb_buffer_create()};
+  // shape_segment clears the buffer, so one per thread serves every call.
+  thread_local auto const buffer = std::unique_ptr<hb_buffer_t, buffer_deleter>{hb_buffer_create()};
 
   auto const extents = primary->metrics(options.style.font_size);
   result.ascent = extents.ascent;

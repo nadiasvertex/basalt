@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "basalt/paint.h"
+#include "basalt/text/paragraph.h"
 #include "basalt/text/text_layout.h"
 #include "basalt/widget_painter.h"
 #include "basalt/widgets/box.h"
@@ -183,4 +184,44 @@ TEST_CASE("text_layout", "[benchmark]") {
   require_optimized_build();
   SECTION("40 blocks of 40 words") { layout_edit_benchmarks(40, 40); }
   SECTION("1 block of 1600 words") { layout_edit_benchmarks(1, 1600); }
+}
+
+// Phase 6 measurements: shaping cost under wrapping and accessibility snapshot cost on a deep tree.
+TEST_CASE("text_shaper", "[benchmark]") {
+  require_optimized_build();
+  scene s;
+  basalt::theme const theme;
+  text::paragraph_options options;
+  options.shape.style = to_layout(text_style_for(theme, text_role::body), {});
+  options.wrap = true;
+  options.max_width = 300;
+  auto const long_text = sentence(400);
+  auto const line_text = sentence(8);
+
+  BENCHMARK("shape one line") { return s.shaper.shape(line_text, options.shape).width; };
+
+  auto spanned = options.shape;
+  spanned.spans = {{.begin = 4, .end = 9, .bold = true}, {.begin = 14, .end = 19, .italic = true}};
+  BENCHMARK("shape one line with two spans") { return s.shaper.shape(line_text, spanned).width; };
+
+  BENCHMARK("lay out a wrapped paragraph of 400 words") {
+    text::paragraph const p{s.shaper, long_text, options};
+    return p.lines().size();
+  };
+}
+
+TEST_CASE("accessibility", "[benchmark]") {
+  require_optimized_build();
+  scene s({600, 8000});
+  // About 3000 labeled nodes, nested ten levels deep.
+  auto *parent = s.root;
+  for (int depth = 0; depth < 10; ++depth) {
+    parent = &parent->emplace_child<box>(axis::vertical);
+    for (int i = 0; i < 300; ++i) {
+      parent->emplace_child<label>("item " + std::to_string(depth) + "." + std::to_string(i));
+    }
+  }
+  s.warm();
+
+  BENCHMARK("build the accessibility tree") { return s.f.semantics().size(); };
 }

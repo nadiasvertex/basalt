@@ -66,6 +66,10 @@ struct shaped_text {
 // direction. Characters no font covers draw as the primary font's missing
 // glyph.
 //
+// Shaping sets the scale on the face's shared HarfBuzz font, so calls that use the same
+// `font_manager` must not run on two threads at once. Use one thread, or one `font_manager` per
+// thread.
+//
 // The text is one paragraph or line: it is not broken, and separators such as
 // newline are shaped like any other character.
 class text_shaper {

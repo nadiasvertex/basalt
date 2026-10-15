@@ -233,6 +233,12 @@ auto implicit_level(std::uint8_t base, bidi_class type) -> std::uint8_t {
 } // namespace
 
 auto resolve_bidi(std::string_view utf8, bidi_base base) -> bidi_paragraph {
+  // ASCII has no right-to-left characters, so a left-to-right paragraph of it is one level-zero
+  // run. The weak and neutral rules would give the same answer.
+  if (base != bidi_base::right_to_left && !utf8.empty() &&
+      std::ranges::all_of(utf8, [](char c) { return static_cast<unsigned char>(c) < 0x80; })) {
+    return {0, {{0, utf8.size(), 0}}};
+  }
   auto units = std::vector<unit>{};
   for (auto pos = std::size_t{0}; pos < utf8.size();) {
     auto const decoded = detail::decode_utf8(utf8, pos);

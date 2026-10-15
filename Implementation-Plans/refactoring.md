@@ -156,6 +156,21 @@ Per `AGENTS.md`, each new test is made to fail once on purpose before it is trus
    call gets its own scaled font through `hb_font_create_sub_font`. The documentation option costs
    nothing. The second option has a per-call cost that the benchmark above should show.
 
+### Phase 6 outcome
+
+Benchmarks `text_shaper` and `accessibility` were added to `benchmarks/widgets_benchmark.cpp`.
+Sampling showed bidi resolution at about a quarter of shaping time and face lookup as negligible, so
+the work went to bidi rather than to the face lookup.
+
+1. **Shaper allocation.** The HarfBuzz buffer is now reused per thread, and `resolve_bidi` returns
+   early for ASCII text in a left-to-right paragraph. A 400 word wrapped paragraph went from about
+   2.23 ms to 1.79 ms, and shaping one line from about 4.9 us to 3.6 us. The primary-face cache and
+   the single bidi pass in `shape_spans` were not done, because the profile gave no reason for them.
+2. **Accessibility build.** Passing origin, enabled and modal state down the recursion was
+   implemented and measured on 3000 nodes at depth 12. It saved about 2% with overlapping intervals,
+   so it was reverted. The cost is elsewhere in the node and vector construction.
+3. **Thread safety.** Shaping is documented as single-threaded per `font_manager` in `text_shaper.h`.
+
 ## Risks
 
 - Phase 2 touches nearly every widget source file. Merging it as one change keeps the helpers and
