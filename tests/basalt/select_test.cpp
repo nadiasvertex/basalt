@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "input_probe.h"
+#include "text/font_support.h"
 #include "ui_fixture.h"
 
 using namespace basalt;
@@ -176,4 +177,28 @@ TEST_CASE("choose replaces the choice in the single mode and rejects bad indices
   REQUIRE(f.field->chosen_indices() == std::vector<std::size_t>{2});
   REQUIRE_FALSE(f.field->choose(3));
   REQUIRE(f.changes == 0);
+}
+
+TEST_CASE("the shown value follows the choice, the placeholder and the mode", "[select]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  fixture f{select_mode::multiple};
+  f.f.tree.set_text_shaper(&shaper);
+  f.f.layout();
+  auto const value = [&] { return f.f.semantics().find(f.field->id())->semantics.value; };
+  float const empty_width = f.field->measure({}).width;
+  REQUIRE(value() == "Pick one");
+
+  f.field->set_placeholder("Pick one of the fruits on offer");
+  REQUIRE(value() == "Pick one of the fruits on offer");
+  REQUIRE(f.field->measure({}).width > empty_width);
+
+  f.field->choose(0);
+  f.field->choose(1);
+  REQUIRE(value() == "2 selected");
+  f.field->set_mode(select_mode::single);
+  REQUIRE(value() == "Apple");
+  f.field->clear();
+  REQUIRE(value() == "Pick one of the fruits on offer");
+  f.f.tree.set_text_shaper(nullptr);
 }

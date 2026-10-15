@@ -81,13 +81,17 @@ protected:
 private:
   struct layout_parts;
   [[nodiscard]] auto parts() const -> layout_parts;
-  [[nodiscard]] auto value_text() const -> std::string;
+  // Brings the cached value line and the chosen count in step with the choice.
+  auto refresh_value() -> void;
   auto option_activated(std::size_t index) -> void;
   auto changed() -> void;
 
   std::vector<std::string> options_;
   std::vector<bool> chosen_;
   field_text field_;
+  // The chosen option, the count of chosen options or the placeholder.
+  text_line value_;
+  std::size_t chosen_count_ = 0;
   select_mode mode_ = select_mode::single;
   widget_id popup_;
   menu *list_ = nullptr;

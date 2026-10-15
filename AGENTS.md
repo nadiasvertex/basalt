@@ -49,6 +49,7 @@ changing it.
 just build              # configure and build the debug preset
 just test               # build and run all tests
 just test sanitize      # the same, with sanitizers
+just bench              # build and run the benchmarks in an optimized build
 just consumer           # install a release build and build tests/consumer against it
 just sources            # download the pinned dependency sources for offline builds
 just format             # clang-format every source

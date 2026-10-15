@@ -202,18 +202,18 @@ auto text_field::paragraph_for(float width) const -> text::paragraph const * {
     return nullptr;
   }
   text_style const style = to_layout(text_style_for(theme(), role_), scale());
-  std::string shown = display_text();
+  std::size_t const preedit_at = preedit_.empty() ? std::string::npos : caret_;
   if (!cache_.valid || cache_.shaper != shaper || cache_.style != style || cache_.width != width ||
-      cache_.wrap != multiline_ || cache_.text != shown) {
+      cache_.preedit_at != preedit_at) {
+    std::string const shown = display_text();
     text::paragraph_options options;
     options.shape.style = style;
     options.wrap = multiline_;
     options.max_width = width;
     cache_ = {.shaper = shaper,
               .style = style,
-              .text = shown,
               .width = width,
-              .wrap = multiline_,
+              .preedit_at = preedit_at,
               .laid_out = std::make_shared<text::paragraph const>(*shaper, shown, options),
               .valid = true};
   }
@@ -248,6 +248,7 @@ auto text_field::set_text(std::string text) -> void {
     return;
   }
   text_ = std::move(text);
+  cache_.valid = false;
   boundaries_valid_ = false;
   preedit_.clear();
   anchor_ = caret_ = text_.size();
@@ -262,6 +263,7 @@ auto text_field::set_multiline(bool multiline) -> void {
     return;
   }
   multiline_ = multiline;
+  cache_.valid = false;
   if (!multiline_) {
     auto const flat = flatten_line_breaks(text_);
     if (flat != text_) {
@@ -289,6 +291,7 @@ auto text_field::set_read_only(bool read_only) -> void {
 auto text_field::set_role(text_role role) -> void {
   if (role != role_) {
     role_ = role;
+    cache_.valid = false;
     invalidate_content();
   }
 }
@@ -361,6 +364,7 @@ auto text_field::notify_change() -> void {
 auto text_field::replace_range(std::size_t begin, std::size_t end, std::string_view replacement)
     -> void {
   text_.replace(begin, end - begin, replacement);
+  cache_.valid = false;
   boundaries_valid_ = false;
   preedit_.clear();
   anchor_ = caret_ = begin + replacement.size();
@@ -388,6 +392,7 @@ auto text_field::set_preedit(std::string preedit) -> void {
     return;
   }
   preedit_ = std::move(preedit);
+  cache_.valid = false;
   invalidate_content();
   reveal_caret();
 }

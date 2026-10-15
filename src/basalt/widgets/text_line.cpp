@@ -38,6 +38,7 @@ auto text_line::set_text(std::string text) -> bool {
     return false;
   }
   text_ = std::move(text);
+  cache_.valid = false;
   return true;
 }
 
@@ -46,6 +47,7 @@ auto text_line::set_role(text_role role) -> bool {
     return false;
   }
   role_ = role;
+  cache_.valid = false;
   return true;
 }
 
@@ -53,10 +55,10 @@ auto text_line::shaped(widget const &owner) const -> cache const & {
   widget_tree const *const tree = owner.tree();
   text::text_shaper const *const shaper = tree != nullptr ? tree->text_shaper() : nullptr;
   text_style const style = to_layout(text_style_for(owner.theme(), role_), owner.scale());
-  if (cache_.valid && cache_.shaper == shaper && cache_.style == style && cache_.text == text_) {
+  if (cache_.valid && cache_.shaper == shaper && cache_.style == style) {
     return cache_;
   }
-  cache_ = {.shaper = shaper, .style = style, .text = text_, .valid = true};
+  cache_ = {.shaper = shaper, .style = style, .valid = true};
   if (shaper != nullptr && !text_.empty()) {
     cache_.shaped = shaper->shape(text_, {.style = style});
   }

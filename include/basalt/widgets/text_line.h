@@ -63,7 +63,7 @@ private:
   struct cache {
     text::text_shaper const *shaper = nullptr;
     text_style style;
-    std::string text;
+    // Cleared by `set_text` and `set_role`, the only mutators of the shaped input.
     bool valid = false;
     text::shaped_text shaped;
     float line_height = 0;

@@ -112,3 +112,25 @@ TEST_CASE("a separator is a hairline across its parent", "[separator]") {
   REQUIRE(a11y::build(f.tree).find(line.id())->semantics.orientation ==
           a11y::orientation::vertical);
 }
+
+TEST_CASE("a shaped label measures new text and a new role after they change", "[label]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  ui f;
+  f.tree.set_text_shaper(&shaper);
+  auto &root = f.tree.emplace_root<widget>();
+  auto &text = root.emplace_child<label>("i");
+  f.layout();
+  float const narrow = text.measure({}).width;
+  REQUIRE(narrow > 0);
+
+  text.set_text("iiiiiiiiii");
+  float const wide = text.measure({}).width;
+  REQUIRE(wide > narrow);
+
+  float const body_height = text.measure({}).height;
+  text.set_role(text_role::heading_large);
+  REQUIRE(text.measure({}).height > body_height);
+  REQUIRE(text.measure({}).width > wide);
+  f.tree.set_text_shaper(nullptr);
+}

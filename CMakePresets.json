@@ -21,6 +21,16 @@
       "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
     },
     {
+      "name": "benchmark",
+      "inherits": "base",
+      "displayName": "Release with benchmarks",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "BASALT_BUILD_BENCHMARKS": "ON",
+        "BASALT_BUILD_TESTS": "OFF"
+      }
+    },
+    {
       "name": "sanitize",
       "inherits": "base",
       "displayName": "Debug with address and undefined-behavior sanitizers",
@@ -30,6 +40,7 @@
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
+    { "name": "benchmark", "configurePreset": "benchmark", "targets": ["basalt_benchmarks"] },
     { "name": "sanitize", "configurePreset": "sanitize" }
   ],
   "testPresets": [

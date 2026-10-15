@@ -30,7 +30,7 @@ else()
   endif()
 endif()
 
-if(BASALT_BUILD_TESTS)
+if(BASALT_BUILD_TESTS OR BASALT_BUILD_BENCHMARKS)
   # An installed Catch2 3 is used when one is found; otherwise the pinned release is fetched.
   FetchContent_Declare(Catch2
     URL "${BASALT_CATCH2_URL}"

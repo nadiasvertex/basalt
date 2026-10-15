@@ -7,12 +7,12 @@ default:
 [doc('Format all C++ sources with clang-format.')]
 [group('format')]
 format:
-    git ls-files -co --exclude-standard -- 'include/*.h' 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'tools/*.cpp' | xargs clang-format -i
+    git ls-files -co --exclude-standard -- 'include/*.h' 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'benchmarks/*.cpp' 'tools/*.cpp' | xargs clang-format -i
 
 [doc('Fail if any C++ source is not formatted.')]
 [group('format')]
 format-check:
-    git ls-files -co --exclude-standard -- 'include/*.h' 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'tools/*.cpp' | xargs clang-format --dry-run --Werror
+    git ls-files -co --exclude-standard -- 'include/*.h' 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'benchmarks/*.cpp' 'tools/*.cpp' | xargs clang-format --dry-run --Werror
 
 [doc('Configure and build with a preset: debug, release or sanitize.')]
 [group('build')]
@@ -24,6 +24,13 @@ build preset="debug":
 [group('test')]
 test preset="debug": (build preset)
     ctest --preset {{ preset }}
+
+[doc('Build and run the benchmarks in an optimized build. Extra arguments go to Catch2, for example a test name.')]
+[group('test')]
+bench *args:
+    cmake --preset benchmark
+    cmake --build --preset benchmark
+    .build/benchmark/benchmarks/basalt_benchmarks --benchmark-samples 200 --benchmark-warmup-time 1000 {{ args }}
 
 [doc('Remove build trees.')]
 [group('build')]

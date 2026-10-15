@@ -83,6 +83,7 @@ struct select::layout_parts {
 
 select::select(std::string label, control_size size) : field_(std::move(label), size) {
   set_focus_policy(focus_policy::strong);
+  refresh_value();
 }
 
 select::~select() = default;
@@ -92,8 +93,7 @@ auto select::parts() const -> layout_parts {
   layout_parts p;
   p.label = field_.label().text().empty() ? basalt::size{} : field_.label().measure(*this);
   p.helper = field_.helper().text().empty() ? basalt::size{} : field_.helper().measure(*this);
-  text_line shown{value_text(), label_role_for(field_.size())};
-  p.value = shown.measure(*this);
+  p.value = value_.measure(*this);
   p.inset = resolve(t.sizes.inset_horizontal_input);
   p.mark = resolve(t.sizes.dimension_icon);
   p.label_gap = p.label.height > 0 ? resolve(t.sizes.gap_vertical_field_input) : 0;
@@ -101,21 +101,23 @@ auto select::parts() const -> layout_parts {
   p.field_top = p.label.height + p.label_gap;
   p.field_height = std::max(p.value.height + 2 * resolve(t.sizes.inset_vertical_list_item_text),
                             resolve(t.sizes.dimension_height_element_min));
-  float const clear = mode_ == select_mode::multiple && !chosen_indices().empty() ? p.mark : 0;
+  float const clear = mode_ == select_mode::multiple && chosen_count_ > 0 ? p.mark : 0;
   p.field_width = std::max(2 * p.inset + p.value.width + clear + p.mark,
                            resolve(t.sizes.dimension_width_popover_min));
   return p;
 }
 
-auto select::value_text() const -> std::string {
-  auto const chosen = chosen_indices();
-  if (chosen.empty()) {
-    return field_.placeholder().text();
+auto select::refresh_value() -> void {
+  chosen_count_ = static_cast<std::size_t>(std::ranges::count(chosen_, true));
+  value_.set_role(label_role_for(field_.size()));
+  if (chosen_count_ == 0) {
+    value_.set_text(field_.placeholder().text());
+  } else if (mode_ == select_mode::multiple) {
+    value_.set_text(std::to_string(chosen_count_) + " selected");
+  } else {
+    auto const first = std::ranges::find(chosen_, true);
+    value_.set_text(options_[static_cast<std::size_t>(first - chosen_.begin())]);
   }
-  if (mode_ == select_mode::multiple) {
-    return std::to_string(chosen.size()) + " selected";
-  }
-  return options_[chosen.front()];
 }
 
 auto select::set_label(std::string label) -> void {
@@ -132,6 +134,7 @@ auto select::set_helper_text(std::string text) -> void {
 
 auto select::set_placeholder(std::string text) -> void {
   if (field_.set_placeholder(std::move(text))) {
+    refresh_value();
     invalidate_content();
   }
 }
@@ -144,6 +147,7 @@ auto select::set_error(bool error) -> void {
 
 auto select::set_size(control_size size) -> void {
   if (field_.set_size(size)) {
+    refresh_value();
     invalidate_content();
   }
 }
@@ -162,6 +166,7 @@ auto select::set_mode(select_mode mode) -> void {
       seen = seen || chosen_[i];
     }
   }
+  refresh_value();
   invalidate_content();
 }
 
@@ -196,12 +201,14 @@ auto select::choose(std::size_t index, bool chosen) -> bool {
     std::ranges::fill(chosen_, false);
   }
   chosen_[index] = chosen;
+  refresh_value();
   invalidate_content();
   return true;
 }
 
 auto select::clear() -> void {
   std::ranges::fill(chosen_, false);
+  refresh_value();
   invalidate_content();
 }
 
@@ -282,6 +289,7 @@ auto select::option_activated(std::size_t index) -> void {
       shown->set_checked(chosen_[index]);
     }
   }
+  refresh_value();
   invalidate_content();
   changed();
 }
@@ -299,7 +307,7 @@ auto select::accessibility_info() const -> a11y::info {
   details.kind = a11y::role::combo_box;
   details.name = field_.label().text();
   details.description = field_.helper().text();
-  details.value = value_text();
+  details.value = value_.text();
   details.invalid = field_.has_error();
   details.expanded = is_open();
   details.actions = {a11y::action::press, a11y::action::focus};
@@ -328,7 +336,7 @@ auto select::on_event(event_context &, event const &e) -> bool {
     if (p->action == pointer_action::up) {
       if (interaction().pressed) {
         layout_parts const lp = parts();
-        bool const has_clear = mode_ == select_mode::multiple && !chosen_indices().empty();
+        bool const has_clear = mode_ == select_mode::multiple && chosen_count_ > 0;
         float const clear_left = bounds().width() - lp.inset - 2 * lp.mark;
         if (has_clear && p->position.x >= clear_left && p->position.x < clear_left + lp.mark) {
           clear();
@@ -349,8 +357,7 @@ auto select::on_event(event_context &, event const &e) -> bool {
       return !k->repeat && open();
     }
     if (mode_ == select_mode::multiple &&
-        (k->code == key::delete_forward || k->code == key::backspace) &&
-        !chosen_indices().empty()) {
+        (k->code == key::delete_forward || k->code == key::backspace) && chosen_count_ > 0) {
       clear();
       changed();
       return true;
@@ -389,18 +396,17 @@ auto select::on_paint(render_context &context) const -> void {
                                                    : t.colors.border_default;
   context.stroke_rounded_rect(inset(field, insets::uniform(stroke / 2)), radius, border, stroke);
 
-  bool const has_clear = mode_ == select_mode::multiple && !chosen_indices().empty();
+  bool const has_clear = mode_ == select_mode::multiple && chosen_count_ > 0;
   float const right = width - p.inset;
   float const chevron_left = right - p.mark;
   float const clear_left = chevron_left - p.mark;
   float const text_right = (has_clear ? clear_left : chevron_left) - p.inset;
-  bool const showing_value = !chosen_indices().empty();
+  bool const showing_value = chosen_count_ > 0;
   rect const text_area{{p.inset, field.top()},
                        {std::max(0.0f, text_right - p.inset), field.height()}};
-  text_line shown{value_text(), label_role_for(field_.size())};
   auto const clip = context.clip(text_area);
-  shown.draw_in(context, *this, text_area,
-                showing_value ? t.colors.text_default : t.colors.text_subdued);
+  value_.draw_in(context, *this, text_area,
+                 showing_value ? t.colors.text_default : t.colors.text_subdued);
 
   float const mark_width = device_stroke_width(fixed(1.5f), scale());
   float const mark_top = field.top() + (field.height() - p.mark) / 2;

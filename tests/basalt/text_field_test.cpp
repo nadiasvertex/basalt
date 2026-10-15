@@ -280,3 +280,40 @@ TEST_CASE("a multi-line field grows as its text wraps", "[text_field]") {
   REQUIRE(wrapped > f.field->bounds().height());
   f.f.tree.set_text_shaper(nullptr);
 }
+
+TEST_CASE("shaped text follows edits, composition, role and multiline changes", "[text_field]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  fixture f("ab");
+  f.f.tree.set_text_shaper(&shaper);
+  f.f.layout();
+  auto const caret_x = [&] { return f.field->caret_rect().left(); };
+
+  float const two = caret_x();
+  f.f.type("cd");
+  float const four = caret_x();
+  REQUIRE(four > two);
+
+  f.field->set_text("a");
+  REQUIRE(caret_x() < two);
+
+  f.field->set_selection(0, 0);
+  f.f.send(ime_event{.text = "wwww"});
+  f.field->set_selection(1, 1);
+  float const after_preedit = caret_x();
+  f.f.send(ime_event{.phase = ime_phase::cancel});
+  REQUIRE(caret_x() < after_preedit);
+
+  float const body_height = f.field->caret_rect().height();
+  f.field->set_role(text_role::heading_large);
+  REQUIRE(f.field->caret_rect().height() > body_height);
+
+  f.field->set_text("one\ntwo");
+  f.field->set_multiline(true);
+  f.field->set_text("one\ntwo");
+  float const second_line = f.field->caret_rect().top();
+  f.field->set_multiline(false);
+  REQUIRE(f.field->text() == "one two");
+  REQUIRE(f.field->caret_rect().top() < second_line);
+  f.f.tree.set_text_shaper(nullptr);
+}

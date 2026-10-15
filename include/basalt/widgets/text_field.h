@@ -119,9 +119,9 @@ private:
   struct cache {
     text::text_shaper const *shaper = nullptr;
     text_style style;
-    std::string text;
     float width = 0;
-    bool wrap = false;
+    // The caret offset the preedit was inserted at, or `npos` without a preedit.
+    std::size_t preedit_at = std::string::npos;
     std::shared_ptr<text::paragraph const> laid_out;
     bool valid = false;
   };
@@ -173,6 +173,7 @@ private:
   text_clipboard clipboard_;
   std::function<void(std::string const &)> on_change_;
   std::function<void(std::string const &)> on_submit_;
+  // Cleared wherever the text, preedit, role or multiline flag changes.
   mutable cache cache_;
   mutable std::vector<std::size_t> boundaries_;
   mutable bool boundaries_valid_ = false;

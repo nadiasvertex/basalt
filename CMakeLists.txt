@@ -4,6 +4,7 @@ project(basalt VERSION 0.3.0 DESCRIPTION "C++ widget library following the Cubit
 
 
 option(BASALT_BUILD_TESTS "Build the Catch2 test suite" ${PROJECT_IS_TOP_LEVEL})
+option(BASALT_BUILD_BENCHMARKS "Build the Catch2 benchmarks" OFF)
 option(BASALT_BUILD_TOOLS "Build the token generator" ${PROJECT_IS_TOP_LEVEL})
 option(BASALT_INSTALL "Add install and package export rules" ${PROJECT_IS_TOP_LEVEL})
 option(BASALT_WARNINGS_AS_ERRORS "Treat compiler warnings as errors" ${PROJECT_IS_TOP_LEVEL})
@@ -34,6 +35,10 @@ endif()
 if(BASALT_BUILD_TESTS)
   enable_testing()
   add_subdirectory(tests)
+endif()
+
+if(BASALT_BUILD_BENCHMARKS)
+  add_subdirectory(benchmarks)
 endif()
 
 if(BASALT_INSTALL)
