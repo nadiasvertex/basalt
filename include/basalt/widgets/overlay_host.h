@@ -51,6 +51,10 @@ public:
   auto show_dialog(std::unique_ptr<widget> dialog, std::function<void()> on_close = {})
       -> widget_id;
 
+  // Makes `overlay` the one exclusive overlay, dismissing the previous one.
+  // Popovers use it so that only one is open at a time.
+  auto make_exclusive(widget_id overlay) -> void;
+
   // False when the overlay is already gone.
   auto dismiss(widget_id overlay) -> bool;
   auto dismiss_all() -> void;
@@ -75,6 +79,7 @@ private:
   widget_id content_id_;
   std::vector<widget_id> overlays_;
   std::vector<widget_id> hover_overlays_;
+  widget_id exclusive_;
 };
 
 } // namespace basalt

@@ -37,6 +37,7 @@ add_executable(basalt_tests
   basalt/hover_delay_test.cpp
   basalt/overlay_host_test.cpp
   basalt/palette_test.cpp
+  basalt/popover_test.cpp
   basalt/progress_bar_test.cpp
   basalt/tooltip_test.cpp
   basalt/text/bidi_test.cpp

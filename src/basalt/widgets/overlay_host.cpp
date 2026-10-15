@@ -161,6 +161,13 @@ auto overlay_host::show_dialog(std::unique_ptr<widget> dialog, std::function<voi
   return add_layer(std::move(dialog), true, false, {}, std::move(on_close));
 }
 
+auto overlay_host::make_exclusive(widget_id overlay) -> void {
+  widget_id const previous = std::exchange(exclusive_, overlay);
+  if (previous.valid() && previous != overlay) {
+    dismiss(previous);
+  }
+}
+
 auto overlay_host::is_open(widget_id overlay) const -> bool {
   return std::ranges::find(overlays_, overlay) != overlays_.end();
 }

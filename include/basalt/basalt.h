@@ -51,6 +51,7 @@
 #include "basalt/widgets/radio_button.h"
 #include "basalt/widgets/scroll_bar.h"
 #include "basalt/widgets/scroll_view.h"
+#include "basalt/widgets/popover.h"
 #include "basalt/widgets/select.h"
 #include "basalt/widgets/separator.h"
 #include "basalt/widgets/split_view.h"
