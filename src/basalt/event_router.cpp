@@ -25,6 +25,8 @@ auto with_position(event const &e, point position) -> event {
     pointer->position = position;
   } else if (auto *wheel = std::get_if<wheel_event>(&copy)) {
     wheel->position = position;
+  } else if (auto *drop = std::get_if<file_drop_event>(&copy)) {
+    drop->position = position;
   }
   return copy;
 }
@@ -53,6 +55,8 @@ auto event_router::dispatch(event const &e) -> bool {
           return dispatch_pointer(value);
         } else if constexpr (std::is_same_v<type, wheel_event>) {
           return dispatch_wheel(value);
+        } else if constexpr (std::is_same_v<type, file_drop_event>) {
+          return dispatch_drop(value);
         } else if constexpr (std::is_same_v<type, window_event>) {
           return dispatch_window(value);
         } else {
@@ -262,6 +266,37 @@ auto event_router::dispatch_wheel(wheel_event const &e) -> bool {
   return target != nullptr && deliver(*target, e).valid();
 }
 
+auto event_router::dispatch_drop(file_drop_event const &e) -> bool {
+  if (e.action == file_drop_action::leave) {
+    end_drop(e.time);
+    return true;
+  }
+  drop_position_ = e.position;
+  widget *const target = hit_test(e.position);
+  widget_id const handler = target != nullptr ? deliver(*target, e) : widget_id{};
+  widget_id const previous = drop_target_;
+  drop_target_ = e.action == file_drop_action::drop ? widget_id{} : handler;
+  if (previous.valid() && previous != handler) {
+    if (widget *const left = tree_->find(previous);
+        left != nullptr && left->state() == widget_state::attached) {
+      (void)deliver(*left, file_drop_event{.action = file_drop_action::leave,
+                                           .position = e.position,
+                                           .time = e.time});
+    }
+  }
+  return handler.valid();
+}
+
+auto event_router::end_drop(event_time time) -> void {
+  widget_id const previous = std::exchange(drop_target_, {});
+  if (widget *const left = tree_->find(previous);
+      left != nullptr && left->state() == widget_state::attached) {
+    (void)deliver(*left, file_drop_event{.action = file_drop_action::leave,
+                                         .position = drop_position_,
+                                         .time = time});
+  }
+}
+
 auto event_router::dispatch_focused(event const &e) -> bool {
   focus_manager &focus = tree_->focus();
   auto const *const key = std::get_if<key_event>(&e);
@@ -320,6 +355,7 @@ auto event_router::cancel_interaction(event_time time) -> void {
   }
   capture_ = {};
   press_target_ = {};
+  end_drop(time);
   if (receiver != nullptr && receiver->state() == widget_state::attached) {
     (void)deliver(*receiver, pointer_event{.action = pointer_action::cancel,
                                            .position = pointer_position_.value_or(point{}),

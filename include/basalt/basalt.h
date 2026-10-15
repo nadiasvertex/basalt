@@ -8,6 +8,7 @@
 #include "basalt/color.h"
 #include "basalt/event.h"
 #include "basalt/event_router.h"
+#include "basalt/file_dialog.h"
 #include "basalt/focus.h"
 #include "basalt/geometry.h"
 #include "basalt/image.h"

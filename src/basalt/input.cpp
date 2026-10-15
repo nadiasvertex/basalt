@@ -136,6 +136,9 @@ auto event_position(event const &e) -> std::optional<point> {
   if (auto const *wheel = std::get_if<wheel_event>(&e)) {
     return wheel->position;
   }
+  if (auto const *drop = std::get_if<file_drop_event>(&e)) {
+    return drop->position;
+  }
   return std::nullopt;
 }
 

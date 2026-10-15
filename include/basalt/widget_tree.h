@@ -1,5 +1,6 @@
 #pragma once
 
+#include "basalt/file_dialog.h"
 #include "basalt/focus.h"
 #include "basalt/geometry.h"
 #include "basalt/text/text_shaper.h"
@@ -77,6 +78,11 @@ public:
   // Invalidates layout and paint, since every text measurement changes.
   auto set_text_shaper(text::text_shaper const *shaper) -> void;
 
+  // The application's file chooser. Empty until the application provides one,
+  // in which case widgets that need files cannot open a dialog.
+  [[nodiscard]] auto file_dialog() const -> basalt::file_dialog const & { return file_dialog_; }
+  auto set_file_dialog(basalt::file_dialog dialog) -> void { file_dialog_ = std::move(dialog); }
+
   [[nodiscard]] auto focus() -> focus_manager & { return focus_; }
   [[nodiscard]] auto focus() const -> focus_manager const & { return focus_; }
 
@@ -130,6 +136,7 @@ private:
   basalt::size viewport_;
   basalt::theme theme_;
   text::text_shaper const *shaper_ = nullptr;
+  basalt::file_dialog file_dialog_;
   scale_factors scale_;
   std::vector<rect> damage_;
   std::vector<std::unique_ptr<widget>> graveyard_;

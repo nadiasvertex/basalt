@@ -4,8 +4,10 @@
 #include "basalt/widget_tree.h"
 
 #include <memory>
+#include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "input_probe.h"
 
@@ -446,4 +448,92 @@ TEST_CASE("window events update the tree", "[event_router]") {
   REQUIRE(f.tree.focus().window_active());
 
   REQUIRE_FALSE(f.router.dispatch(window_event{.action = window_action::close_requested}));
+}
+
+TEST_CASE("file drops go to the widget under the position", "[event_router][file_drop]") {
+  fixture f;
+  auto &left = f.root->add_child(make("left", {{0, 0}, {200, 100}}));
+  auto &right = f.root->add_child(make("right", {{200, 0}, {200, 100}}));
+  right.handles_all = true;
+
+  file_drop_event drop{
+      .action = file_drop_action::drop, .position = {250, 10}, .paths = {"/tmp/a.txt"}};
+  REQUIRE(f.router.dispatch(drop));
+  auto const &seen = std::get<file_drop_event>(right.received.back());
+  REQUIRE(seen.position == point{50, 10});
+  REQUIRE(seen.paths == std::vector<std::string>{"/tmp/a.txt"});
+  REQUIRE(left.received.empty());
+
+  drop.position = {10, 10};
+  REQUIRE_FALSE(f.router.dispatch(drop));
+}
+
+TEST_CASE("a drag is ended for the widget it leaves", "[event_router][file_drop]") {
+  fixture f;
+  auto &left = f.root->add_child(make("left", {{0, 0}, {200, 100}}));
+  auto &right = f.root->add_child(make("right", {{200, 0}, {200, 100}}));
+  left.handles_all = true;
+  right.handles_all = true;
+  auto const actions = [](input_probe const &p) {
+    std::vector<file_drop_action> out;
+    for (auto const &e : p.received) {
+      if (auto const *d = std::get_if<file_drop_event>(&e)) {
+        out.push_back(d->action);
+      }
+    }
+    return out;
+  };
+
+  REQUIRE(
+      f.router.dispatch(file_drop_event{.action = file_drop_action::enter, .position = {10, 10}}));
+  REQUIRE(
+      f.router.dispatch(file_drop_event{.action = file_drop_action::move, .position = {250, 10}}));
+  REQUIRE(actions(left) == std::vector{file_drop_action::enter, file_drop_action::leave});
+  REQUIRE(actions(right) == std::vector{file_drop_action::move});
+
+  REQUIRE(f.router.dispatch(file_drop_event{.action = file_drop_action::leave}));
+  REQUIRE(actions(right) == std::vector{file_drop_action::move, file_drop_action::leave});
+  // Nothing is left to end.
+  REQUIRE(f.router.dispatch(file_drop_event{.action = file_drop_action::leave}));
+  REQUIRE(actions(right).size() == 2);
+}
+
+TEST_CASE("dropping ends the drag without a leave", "[event_router][file_drop]") {
+  fixture f;
+  f.root->handles_all = true;
+  REQUIRE(
+      f.router.dispatch(file_drop_event{.action = file_drop_action::enter, .position = {10, 10}}));
+  REQUIRE(f.router.dispatch(file_drop_event{
+      .action = file_drop_action::drop, .position = {10, 10}, .paths = {"/tmp/a"}}));
+  REQUIRE(f.router.dispatch(file_drop_event{.action = file_drop_action::leave}));
+  int leaves = 0;
+  for (auto const &e : f.root->received) {
+    if (auto const *d = std::get_if<file_drop_event>(&e);
+        d != nullptr && d->action == file_drop_action::leave) {
+      ++leaves;
+    }
+  }
+  REQUIRE(leaves == 0);
+}
+
+TEST_CASE("losing window focus ends a drag", "[event_router][file_drop]") {
+  fixture f;
+  f.root->handles_all = true;
+  REQUIRE(
+      f.router.dispatch(file_drop_event{.action = file_drop_action::enter, .position = {10, 10}}));
+  f.router.dispatch(window_event{.action = window_action::focus_lost});
+  REQUIRE(std::get<file_drop_event>(f.root->received.back()).action == file_drop_action::leave);
+}
+
+TEST_CASE("the file dialog hook is stored on the tree", "[widget_tree][file_dialog]") {
+  widget_tree tree;
+  REQUIRE_FALSE(tree.file_dialog());
+  std::vector<std::string> chosen;
+  tree.set_file_dialog({[](file_dialog_request const &request, file_dialog::completion done) {
+    done(request.multiple ? std::vector<std::string>{"a", "b"} : std::vector<std::string>{"a"});
+  }});
+  REQUIRE(tree.file_dialog());
+  tree.file_dialog().open({.multiple = true},
+                          [&](std::vector<std::string> paths) { chosen = paths; });
+  REQUIRE(chosen == std::vector<std::string>{"a", "b"});
 }

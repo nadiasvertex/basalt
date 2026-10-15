@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <variant>
+#include <vector>
 
 namespace basalt {
 
@@ -83,6 +84,29 @@ struct ime_event {
   event_time time{};
 };
 
+enum class file_drop_action : std::uint8_t {
+  // Files being dragged came over the window.
+  enter,
+  move,
+  // The files were released over the position.
+  drop,
+  // The drag left the window or was abandoned.
+  leave,
+};
+
+// Files dragged in from outside the application. The router delivers `enter`
+// and `move` to the widget under the position and `leave` to the widget that
+// last handled one; a widget that handles `enter` or `move` shows that it can
+// accept the drop, and one that handles `drop` takes the files.
+struct file_drop_event {
+  file_drop_action action = file_drop_action::move;
+  point position;
+  // UTF-8 paths. Set for `drop`; platforms that know them earlier may set them
+  // for `enter` and `move`.
+  std::vector<std::string> paths;
+  event_time time{};
+};
+
 enum class window_action : std::uint8_t {
   resized,
   scale_changed,
@@ -109,11 +133,11 @@ struct command_event {
 };
 
 using event = std::variant<pointer_event, wheel_event, key_event, text_input_event, ime_event,
-                           window_event, command_event>;
+                           window_event, command_event, file_drop_event>;
 
 [[nodiscard]] auto event_time_of(event const &e) -> event_time;
 
-// Pointer position for events that have one.
+// Pointer position for events that have one: pointer, wheel and file drop.
 [[nodiscard]] auto event_position(event const &e) -> std::optional<point>;
 
 // Events delivered to the focused widget rather than the widget under the pointer.

@@ -50,7 +50,9 @@ private:
 // Turns normalized platform events into widget deliveries for one tree.
 //
 // Pointer events go to the widget under the pointer, or to the widget that
-// captured the pointer, and bubble to the root. Keyboard, text, IME and
+// captured the pointer, and bubble to the root. File drops go to the widget
+// under the drop position; the widget that last accepted an `enter` or `move`
+// is told when the drag leaves it. Keyboard, text, IME and
 // command events go to the focused widget (or, with nothing focused, to the
 // active modal or the root) and bubble up to the active modal or the root.
 // Positions are converted to each receiving widget's coordinates. Disabled
@@ -111,6 +113,8 @@ private:
 
   auto dispatch_pointer(pointer_event const &e) -> bool;
   auto dispatch_wheel(wheel_event const &e) -> bool;
+  auto dispatch_drop(file_drop_event const &e) -> bool;
+  auto end_drop(event_time time) -> void;
   auto dispatch_focused(event const &e) -> bool;
   auto dispatch_window(window_event const &e) -> bool;
   // Delivers `e` from `target` up to the root (or `stop`, inclusive) and
@@ -132,6 +136,8 @@ private:
   std::vector<widget_id> hover_chain_;
   std::vector<widget_id> pressed_chain_;
   std::optional<point> pointer_position_;
+  widget_id drop_target_;
+  point drop_position_;
   // Set by `event_context::release_pointer` during the current delivery.
   bool capture_declined_ = false;
 };
