@@ -28,9 +28,9 @@ public:
 protected:
   auto perform_activation() -> void override;
   [[nodiscard]] auto activates_on_enter() const -> bool override { return true; }
-  [[nodiscard]] auto indicator_size(theme const &t) const -> basalt::size override;
-  auto paint_indicator(render_context &context, rect box, theme const &t, control_state state) const
-      -> void override;
+  [[nodiscard]] auto indicator_size(basalt::theme const &t) const -> basalt::size override;
+  auto paint_indicator(render_context &context, rect box, basalt::theme const &t,
+                       control_state state) const -> void override;
   auto describe(accessibility::info &details) const -> void override;
 
 private:

@@ -7,6 +7,8 @@
 #include <cctype>
 #include <variant>
 
+#include "notify.h"
+
 namespace basalt {
 
 namespace a11y = accessibility;
@@ -57,8 +59,7 @@ auto uploader::set_layout(uploader_layout layout) -> void {
     if (layout_ == uploader_layout::no_drop_zone) {
       dragging_ = false;
     }
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -66,8 +67,7 @@ auto uploader::set_behavior(uploader_behavior behavior) -> void { behavior_ = be
 
 auto uploader::set_prompt(std::string text) -> void {
   if (prompt_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -138,11 +138,8 @@ auto uploader::add_files(std::vector<std::string> paths) -> std::vector<std::str
   }
   list_->set_visible(true);
   invalidate_layout();
-  if (on_added_) {
-    auto const handler = on_added_;
-    auto const added = taken;
-    handler(added);
-  }
+  auto const added = taken;
+  notify(on_added_, added);
   return taken;
 }
 
@@ -155,10 +152,7 @@ auto uploader::removed(std::uint64_t key) -> void {
   entries_.erase(it);
   list_->set_visible(!entries_.empty());
   invalidate_layout();
-  if (on_removed_) {
-    auto const handler = on_removed_;
-    handler(path);
-  }
+  notify(on_removed_, path);
 }
 
 auto uploader::clear() -> void {
@@ -185,8 +179,7 @@ auto uploader::finish(std::string_view path, bool succeeded) -> void {
 
 auto uploader::set_error_message(std::string message) -> void {
   if (error_.set_text(std::move(message))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -245,8 +238,7 @@ auto uploader::on_event(event_context &, event const &e) -> bool {
 }
 
 auto uploader::arrange(float width) const -> plan {
-  basalt::theme const fallback;
-  theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+  basalt::theme const &t = theme();
   float const pad_x = resolve(t.sizes.inset_horizontal_drop_zone);
   float const pad_y = resolve(t.sizes.inset_vertical_drop_zone);
   float const gap = resolve(section_gap);
@@ -317,7 +309,7 @@ auto uploader::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   plan const p = arrange(bounds().width());
   bool const failed = !error_.text().empty();
   if (layout_ != uploader_layout::no_drop_zone) {

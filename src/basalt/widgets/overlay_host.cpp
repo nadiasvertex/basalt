@@ -55,7 +55,7 @@ protected:
 
   auto on_paint(render_context &context) const -> void override {
     if (dialog_ && tree() != nullptr) {
-      context.fill_rect({{}, bounds().extent}, tree()->theme().colors.background_overlay);
+      context.fill_rect({{}, bounds().extent}, theme().colors.background_overlay);
     }
   }
 
@@ -67,8 +67,7 @@ protected:
     basalt::size const area = bounds().extent;
     basalt::size wanted = content->measure(constraints::loose(area));
     if (dialog_ && tree() != nullptr) {
-      wanted.width =
-          std::max(wanted.width, resolve(tree()->theme().sizes.dimension_width_dialog_min));
+      wanted.width = std::max(wanted.width, resolve(theme().sizes.dimension_width_dialog_min));
       wanted.width = std::min(wanted.width, area.width);
     }
     point origin;
@@ -206,12 +205,7 @@ auto overlay_host::dismiss_all() -> void {
 }
 
 auto overlay_host::find(widget const &w) -> overlay_host * {
-  for (widget *p = w.parent(); p != nullptr; p = p->parent()) {
-    if (auto *const host = dynamic_cast<overlay_host *>(p)) {
-      return host;
-    }
-  }
-  return nullptr;
+  return w.find_ancestor<overlay_host>();
 }
 
 } // namespace basalt

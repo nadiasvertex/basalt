@@ -28,15 +28,13 @@ label::label(std::string text, text_role role) : line_(std::move(text), role) {}
 
 auto label::set_text(std::string text) -> void {
   if (line_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto label::set_role(text_role role) -> void {
   if (line_.set_role(role)) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -63,7 +61,7 @@ auto label::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  line_.draw_in(context, *this, {{}, bounds().extent}, text_color_for(tree()->theme(), tone_));
+  line_.draw_in(context, *this, {{}, bounds().extent}, text_color_for(theme(), tone_));
 }
 
 } // namespace basalt

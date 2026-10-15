@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "glyphs.h"
+#include "notify.h"
 
 namespace basalt {
 
@@ -18,10 +19,6 @@ namespace {
 
 constexpr float vertical_padding = 4;
 constexpr float remove_mark_side = 16;
-
-auto theme_of(widget const &w, theme const &fallback) -> theme const & {
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
 
 } // namespace
 
@@ -44,8 +41,7 @@ chip::chip(std::string label, control_size size)
 }
 
 auto chip::parts() const -> layout_parts {
-  basalt::theme const fallback;
-  theme const &t = theme_of(*this, fallback);
+  basalt::theme const &t = theme();
   layout_parts p;
   p.inset = resolve(t.sizes.inset_horizontal_chip_text);
   p.gap = resolve(t.sizes.gap_horizontal_shape_text);
@@ -67,8 +63,7 @@ auto chip::parts() const -> layout_parts {
 auto chip::set_label(std::string label) -> void {
   if (line_.set_text(std::move(label))) {
     refresh_tooltip();
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -76,8 +71,7 @@ auto chip::set_size(control_size size) -> void {
   if (size != size_) {
     size_ = size;
     line_.set_role(label_role_for(size));
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -98,9 +92,8 @@ auto chip::set_selected(bool selected) -> void {
 auto chip::set_removable(bool removable) -> void {
   if (removable != removable_) {
     removable_ = removable;
-    invalidate_layout();
-    invalidate_paint();
-    if (auto *const group = dynamic_cast<chip_group *>(parent())) {
+    invalidate_content();
+    if (auto *const group = parent_as<chip_group>()) {
       group->refresh_remove_all();
     }
   }
@@ -123,8 +116,7 @@ auto chip::set_loading(bool loading) -> void {
 auto chip::set_max_width(std::optional<length> width) -> void {
   if (width != max_width_) {
     max_width_ = width;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -136,13 +128,10 @@ auto chip::toggle() -> bool {
   }
   set_selected(!selected_);
   bool const state = selected_;
-  if (auto *const group = dynamic_cast<chip_group *>(parent())) {
+  if (auto *const group = parent_as<chip_group>()) {
     group->chip_toggled(*this);
   }
-  if (on_toggle_) {
-    auto const handler = on_toggle_;
-    handler(state);
-  }
+  notify(on_toggle_, state);
   return true;
 }
 
@@ -155,7 +144,7 @@ auto chip::remove() -> bool {
     handler();
   }
   // The handler may have removed the chip itself.
-  if (auto *const group = dynamic_cast<chip_group *>(parent())) {
+  if (auto *const group = parent_as<chip_group>()) {
     group->chip_removed(*this);
   }
   return true;
@@ -255,22 +244,18 @@ auto chip::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   auto const &c = t.colors;
   layout_parts const m = parts();
   rect const area{{}, {m.width, m.height}};
   float const radius = std::min(resolve(t.sizes.radius_chip), m.height / 2);
   control_state const state = control_state_of(interaction(), enabled());
-  bool const hovered = state == control_state::hovered;
-  bool const pressed = state == control_state::pressed;
 
-  rgba fill = pressed   ? c.background_neutral_active
-              : hovered ? c.background_neutral_hover
-                        : c.background_secondary;
+  rgba fill = by_state(state, c.background_secondary, c.background_neutral_hover,
+                       c.background_neutral_active);
   if (selected_) {
-    fill = pressed   ? c.background_accent_subdued_active
-           : hovered ? c.background_accent_subdued_hover
-                     : c.background_accent_subdued;
+    fill = by_state(state, c.background_accent_subdued, c.background_accent_subdued_hover,
+                    c.background_accent_subdued_active);
   }
   context.fill_rounded_rect(area, radius, fill);
   float const width = device_stroke_width(fixed(1), scale());
@@ -421,8 +406,7 @@ auto chip_group::on_child_removed(widget &child) -> void {
 }
 
 auto chip_group::flow(float max_width, bool place) const -> basalt::size {
-  basalt::theme const fallback;
-  theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+  basalt::theme const &t = theme();
   float const gap = resolve(t.sizes.gap_horizontal_shape_text);
   float x = 0;
   float y = 0;

@@ -3,6 +3,7 @@
 #include "basalt/geometry.h"
 
 #include <cstdint>
+#include <type_traits>
 
 namespace basalt {
 
@@ -41,6 +42,23 @@ enum class control_state : std::uint8_t { normal, hovered, pressed, disabled };
     return control_state::pressed;
   }
   return state.hovered ? control_state::hovered : control_state::normal;
+}
+
+// Picks the value for `state`. A disabled control shows its normal value.
+template <class T>
+[[nodiscard]] constexpr auto by_state(control_state state, T normal,
+                                      std::type_identity_t<T> hovered,
+                                      std::type_identity_t<T> pressed) -> T {
+  switch (state) {
+  case control_state::hovered:
+    return hovered;
+  case control_state::pressed:
+    return pressed;
+  case control_state::normal:
+  case control_state::disabled:
+    break;
+  }
+  return normal;
 }
 
 // How a widget may receive keyboard focus. Every policy except `none` accepts

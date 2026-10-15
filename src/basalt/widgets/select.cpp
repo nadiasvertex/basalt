@@ -12,6 +12,7 @@
 #include <variant>
 
 #include "glyphs.h"
+#include "notify.h"
 
 namespace basalt {
 
@@ -22,10 +23,6 @@ namespace {
 constexpr text_role helper_role = text_role::small;
 // The list scrolls beyond this many rows.
 constexpr std::size_t visible_rows = 8;
-
-auto theme_of(widget const &w, theme const &fallback) -> theme const & {
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
 
 // The list shown in the popup: a menu in a scroll view that is as wide as the
 // field and as tall as its rows, up to a limit.
@@ -94,8 +91,7 @@ select::select(std::string label, control_size size)
 select::~select() = default;
 
 auto select::parts() const -> layout_parts {
-  basalt::theme const fallback;
-  theme const &t = theme_of(*this, fallback);
+  basalt::theme const &t = theme();
   layout_parts p;
   p.label = label_.text().empty() ? basalt::size{} : label_.measure(*this);
   p.helper = helper_.text().empty() ? basalt::size{} : helper_.measure(*this);
@@ -127,22 +123,19 @@ auto select::value_text() const -> std::string {
 
 auto select::set_label(std::string label) -> void {
   if (label_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto select::set_helper_text(std::string text) -> void {
   if (helper_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto select::set_placeholder(std::string text) -> void {
   if (placeholder_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -160,8 +153,7 @@ auto select::set_size(control_size size) -> void {
   size_ = size;
   label_.set_role(label_role_for(size));
   placeholder_.set_role(label_role_for(size));
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto select::set_mode(select_mode mode) -> void {
@@ -178,8 +170,7 @@ auto select::set_mode(select_mode mode) -> void {
       seen = seen || chosen_[i];
     }
   }
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto select::add_option(std::string label) -> void {
@@ -213,23 +204,16 @@ auto select::choose(std::size_t index, bool chosen) -> bool {
     std::ranges::fill(chosen_, false);
   }
   chosen_[index] = chosen;
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
   return true;
 }
 
 auto select::clear() -> void {
   std::ranges::fill(chosen_, false);
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
-auto select::changed() -> void {
-  if (on_change_) {
-    auto const handler = on_change_;
-    handler();
-  }
-}
+auto select::changed() -> void { notify(on_change_); }
 
 auto select::is_open() const -> bool {
   overlay_host const *const host = overlay_host::find(*this);
@@ -244,8 +228,7 @@ auto select::open() -> bool {
   if (host == nullptr) {
     return false;
   }
-  basalt::theme const fallback;
-  theme const &t = theme_of(*this, fallback);
+  basalt::theme const &t = theme();
   rect const field_box = {{0, parts().field_top}, {bounds().width(), parts().field_height}};
   float const row = resolve(t.sizes.dimension_height_element_min);
 
@@ -306,8 +289,7 @@ auto select::option_activated(std::size_t index) -> void {
       shown->set_checked(chosen_[index]);
     }
   }
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
   changed();
 }
 
@@ -394,7 +376,7 @@ auto select::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   layout_parts const p = parts();
   float const width = bounds().width();
   if (p.label.height > 0) {

@@ -54,7 +54,7 @@ auto status_bar::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  auto const &colors = tree()->theme().colors;
+  auto const &colors = theme().colors;
   rect const area{{}, bounds().extent};
   context.fill_rect(area, colors.background_secondary);
   float const width = device_stroke_width(fixed(1), scale());

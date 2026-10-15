@@ -6,6 +6,8 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+
 namespace basalt {
 
 auto wrap_message(std::string const &text, std::size_t columns) -> std::vector<std::string> {
@@ -66,10 +68,7 @@ auto dialog::choose(std::size_t index) -> bool {
   if (index >= button_count_) {
     return false;
   }
-  if (on_choice_) {
-    auto const handler = on_choice_;
-    handler(index);
-  }
+  notify(on_choice_, index);
   return true;
 }
 
@@ -93,7 +92,7 @@ auto dialog::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   float const radius = resolve(t.sizes.radius_panel);
   float const width = device_stroke_width(fixed(1), scale());

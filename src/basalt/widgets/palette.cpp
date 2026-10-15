@@ -12,14 +12,7 @@
 
 namespace basalt {
 
-namespace {
-
-auto theme_of(widget const &w) -> theme const & {
-  static theme const fallback;
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
-
-} // namespace
+namespace {} // namespace
 
 class palette_row : public widget {
 public:
@@ -71,7 +64,7 @@ protected:
   }
 
   [[nodiscard]] auto on_measure(constraints const &) const -> basalt::size override {
-    auto const &sizes = theme_of(*this).sizes;
+    auto const &sizes = theme().sizes;
     basalt::size const label = label_.measure(*this);
     basalt::size const detail = detail_.measure(*this);
     basalt::size const category = category_.measure(*this);
@@ -87,7 +80,7 @@ protected:
     if (tree() == nullptr) {
       return;
     }
-    theme const &t = theme_of(*this);
+    basalt::theme const &t = theme();
     rect const area{{}, bounds().extent};
     if (selected_) {
       context.fill_rect(area, t.colors.background_accent_subdued);
@@ -110,11 +103,8 @@ protected:
 
 private:
   auto choose() -> void {
-    for (widget *w = parent(); w != nullptr; w = w->parent()) {
-      if (auto *const owner = dynamic_cast<palette *>(w)) {
-        owner->row_chosen(index_);
-        return;
-      }
+    if (auto *const owner = find_ancestor<palette>()) {
+      owner->row_chosen(index_);
     }
   }
 
@@ -218,8 +208,7 @@ auto palette::rebuild_rows() -> void {
       rows_->emplace_child<palette_row>(entries_[i], i, i == selected_);
     }
   }
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto palette::on_event(event_context &, event const &e) -> bool {
@@ -249,7 +238,7 @@ auto palette::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   float const radius = resolve(t.sizes.radius_panel);
   float const width = device_stroke_width(fixed(1), scale());

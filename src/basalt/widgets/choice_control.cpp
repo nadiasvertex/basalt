@@ -11,10 +11,6 @@ namespace basalt {
 
 namespace {
 
-auto theme_of(widget const &w, theme const &fallback) -> theme const & {
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
-
 constexpr text_role helper_role = text_role::small;
 
 } // namespace
@@ -38,8 +34,7 @@ choice_control::choice_control(std::string label, control_size size)
 }
 
 auto choice_control::measure_parts() const -> metrics {
-  basalt::theme const fallback;
-  theme const &t = theme_of(*this, fallback);
+  basalt::theme const &t = theme();
   metrics m;
   m.indicator = indicator_size(t);
   m.label = label_.measure(*this);
@@ -54,22 +49,19 @@ auto choice_control::measure_parts() const -> metrics {
 
 auto choice_control::set_label(std::string label) -> void {
   if (label_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto choice_control::set_helper_text(std::string text) -> void {
   if (helper_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto choice_control::set_trailing_text(std::string text) -> void {
   if (trailing_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -87,8 +79,7 @@ auto choice_control::set_size(control_size size) -> void {
   size_ = size;
   label_.set_role(label_role_for(size));
   trailing_.set_role(label_role_for(size));
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto choice_control::activate() -> bool {
@@ -141,8 +132,7 @@ auto choice_control::on_event(event_context &, event const &e) -> bool {
 
 auto choice_control::on_measure(constraints const &) const -> basalt::size {
   metrics const m = measure_parts();
-  basalt::theme const fallback;
-  theme const &t = theme_of(*this, fallback);
+  basalt::theme const &t = theme();
   float const text_start = m.indicator.width + m.gap;
   float width = text_start + m.label.width;
   if (m.trailing.width > 0) {
@@ -160,7 +150,7 @@ auto choice_control::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   metrics const m = measure_parts();
   float const row = std::max(m.row_height, resolve(t.sizes.dimension_height_element_min));
   rect const box{{0, (row - m.indicator.height) / 2}, m.indicator};

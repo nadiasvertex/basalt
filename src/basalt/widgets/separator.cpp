@@ -16,8 +16,7 @@ constexpr length thickness = fixed(1);
 auto separator::set_direction(axis direction) -> void {
   if (direction != direction_) {
     direction_ = direction;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -47,7 +46,7 @@ auto separator::on_paint(render_context &context) const -> void {
   } else {
     line = {{snap_to_device((extent.width - width) / 2, factors), 0}, {width, extent.height}};
   }
-  context.fill_rect(line, tree()->theme().colors.border_subdued);
+  context.fill_rect(line, theme().colors.border_subdued);
 }
 
 } // namespace basalt

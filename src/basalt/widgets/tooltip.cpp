@@ -21,8 +21,7 @@ tooltip::tooltip(std::string text) : line_(std::move(text), tooltip_role) {
 
 auto tooltip::set_text(std::string text) -> void {
   if (line_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -34,8 +33,7 @@ auto tooltip::accessibility_info() const -> accessibility::info {
 }
 
 auto tooltip::on_measure(constraints const &) const -> basalt::size {
-  basalt::theme const fallback;
-  theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+  basalt::theme const &t = theme();
   basalt::size const text = line_.measure(*this);
   return {text.width + 2 * resolve(t.sizes.inset_horizontal_tooltip),
           text.height + 2 * resolve(t.sizes.inset_vertical_tooltip)};
@@ -45,7 +43,7 @@ auto tooltip::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   context.fill_rounded_rect(area, resolve(t.sizes.radius_default),
                             t.colors.background_default_dark);

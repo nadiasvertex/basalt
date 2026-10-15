@@ -52,9 +52,7 @@ auto text_line::set_role(text_role role) -> bool {
 auto text_line::shaped(widget const &owner) const -> cache const & {
   widget_tree const *const tree = owner.tree();
   text::text_shaper const *const shaper = tree != nullptr ? tree->text_shaper() : nullptr;
-  basalt::theme const fallback;
-  text_style const style =
-      to_layout(text_style_for(tree != nullptr ? tree->theme() : fallback, role_), owner.scale());
+  text_style const style = to_layout(text_style_for(owner.theme(), role_), owner.scale());
   if (cache_.valid && cache_.shaper == shaper && cache_.style == style && cache_.text == text_) {
     return cache_;
   }

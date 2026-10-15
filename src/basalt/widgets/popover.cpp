@@ -30,8 +30,7 @@ public:
 
 protected:
   [[nodiscard]] auto on_measure(constraints const &limits) const -> basalt::size override {
-    basalt::theme const fallback;
-    theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+    basalt::theme const &t = theme();
     float const min_width = resolve(t.sizes.dimension_width_popover_min);
     float const max_width =
         std::min(resolve(t.sizes.dimension_width_popover_max), limits.max.width);
@@ -43,8 +42,7 @@ protected:
   }
 
   auto on_layout() -> void override {
-    basalt::theme const fallback;
-    theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+    basalt::theme const &t = theme();
     insets const pad = padding(t);
     float const top = pad.top + (tip_ && below_ ? tip_height(t) : 0);
     child(0).set_bounds(
@@ -57,7 +55,7 @@ protected:
     if (tree() == nullptr) {
       return;
     }
-    theme const &t = tree()->theme();
+    basalt::theme const &t = theme();
     float const tip = tip_ ? tip_height(t) : 0;
     rect const body{{0, tip_ && below_ ? tip : 0}, {bounds().width(), bounds().height() - tip}};
     float const radius = resolve(t.sizes.radius_default);
@@ -71,18 +69,18 @@ protected:
   }
 
 private:
-  [[nodiscard]] auto padding(theme const &t) const -> insets {
+  [[nodiscard]] auto padding(basalt::theme const &t) const -> insets {
     return insets::symmetric(resolve(t.sizes.inset_horizontal_panel),
                              resolve(t.sizes.inset_vertical_panel));
   }
-  [[nodiscard]] auto tip_height(theme const &t) const -> float {
+  [[nodiscard]] auto tip_height(basalt::theme const &t) const -> float {
     return resolve(t.sizes.dimension_icon) / 2;
   }
 
   // A triangle built from strips, which every renderer can draw. The strip
   // that meets the body is open, so the border does not close the tip.
-  auto paint_tip(render_context &context, theme const &t, rect body, float tip, float stroke) const
-      -> void {
+  auto paint_tip(render_context &context, basalt::theme const &t, rect body, float tip,
+                 float stroke) const -> void {
     float const radius = resolve(t.sizes.radius_default);
     float const center = std::clamp(anchor_center_ - bounds_in_root().left(), radius + tip,
                                     std::max(radius + tip, bounds().width() - radius - tip));

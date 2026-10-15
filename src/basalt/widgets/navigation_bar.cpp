@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "glyphs.h"
+#include "notify.h"
 
 namespace basalt {
 
@@ -24,8 +25,7 @@ navigation_item::~navigation_item() = default;
 
 auto navigation_item::set_label(std::string label) -> void {
   if (label_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -33,8 +33,7 @@ auto navigation_item::set_selected(bool selected) -> void {
   if (selected != selected_) {
     selected_ = selected;
     label_.set_role(selected ? text_role::body_strong : text_role::body);
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -68,8 +67,7 @@ auto navigation_item::open_entries() -> bool {
   }
   popup->set_on_activate([this](std::string const &id) {
     close();
-    if (auto *const bar =
-            dynamic_cast<navigation_bar *>(parent() != nullptr ? parent()->parent() : nullptr)) {
+    if (auto *const bar = find_ancestor<navigation_bar>()) {
       bar->chosen(*this, id);
     }
   });
@@ -91,8 +89,7 @@ auto navigation_item::activate() -> bool {
     }
     return open_entries();
   }
-  if (auto *const bar =
-          dynamic_cast<navigation_bar *>(parent() != nullptr ? parent()->parent() : nullptr)) {
+  if (auto *const bar = find_ancestor<navigation_bar>()) {
     bar->chosen(*this, id_);
   }
   return true;
@@ -142,8 +139,7 @@ auto navigation_item::on_event(event_context &, event const &e) -> bool {
 }
 
 auto navigation_item::on_measure(constraints const &) const -> basalt::size {
-  basalt::theme const fallback;
-  theme const &t = tree() != nullptr ? tree()->theme() : fallback;
+  basalt::theme const &t = theme();
   basalt::size const text = label_.measure(*this);
   float const mark = entries_.empty() ? 0 : resolve(t.sizes.dimension_icon);
   return {2 * resolve(t.sizes.inset_horizontal_nav_bar_item) + text.width + mark,
@@ -154,7 +150,7 @@ auto navigation_item::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   switch (control_state_of(interaction(), enabled())) {
   case control_state::hovered:
@@ -260,11 +256,8 @@ auto navigation_bar::chosen(navigation_item const &from, std::string const &id) 
   if (from.parent() == sections_) {
     select(from.item_id());
   }
-  if (on_navigate_) {
-    auto const handler = on_navigate_;
-    auto const target = id;
-    handler(target);
-  }
+  auto const target = id;
+  notify(on_navigate_, target);
 }
 
 auto navigation_bar::accessibility_info() const -> a11y::info {

@@ -43,10 +43,6 @@ auto text_role_for_name(control_size size) -> text_role {
   return size == control_size::small ? text_role::small_strong : text_role::body_strong;
 }
 
-auto theme_of(widget const &w, theme const &fallback) -> theme const & {
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
-
 } // namespace
 
 auto avatar_initials(std::string_view name) -> std::string {
@@ -78,8 +74,7 @@ avatar::avatar(std::string name, control_size size)
 }
 
 auto avatar::diameter() const -> float {
-  basalt::theme const fallback;
-  float const base = resolve(theme_of(*this, fallback).sizes.dimension_avatar);
+  float const base = resolve(theme().sizes.dimension_avatar);
   switch (size_) {
   case control_size::small:
     return base;
@@ -99,15 +94,13 @@ auto avatar::set_name(std::string name) -> void {
   if (name_.set_text(std::move(name))) {
     initials_.set_text(avatar_initials(name_.text()));
     refresh_tooltip();
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto avatar::set_supporting_text(std::string text) -> void {
   if (supporting_.set_text(std::move(text))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -120,8 +113,7 @@ auto avatar::set_layout(avatar_layout layout) -> void {
   if (layout != layout_) {
     layout_ = layout;
     refresh_tooltip();
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -130,8 +122,7 @@ auto avatar::set_size(control_size size) -> void {
     size_ = size;
     name_.set_role(text_role_for_name(size));
     initials_.set_role(label_role_for(size));
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -154,8 +145,7 @@ auto avatar::on_measure(constraints const &) const -> basalt::size {
   if (layout_ == avatar_layout::graphic_only) {
     return {d, d};
   }
-  basalt::theme const fallback;
-  float const gap = resolve(theme_of(*this, fallback).sizes.gap_horizontal_shape_text);
+  float const gap = resolve(theme().sizes.gap_horizontal_shape_text);
   basalt::size const name = name_.measure(*this);
   basalt::size const support =
       supporting_.text().empty() ? basalt::size{} : supporting_.measure(*this);
@@ -167,7 +157,7 @@ auto avatar::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   float const d = diameter();
   float const gap = resolve(t.sizes.gap_horizontal_shape_text);
   basalt::size const own = bounds().extent;

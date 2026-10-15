@@ -13,11 +13,6 @@ namespace basalt {
 
 namespace {
 
-auto theme_of(widget const &w) -> theme const & {
-  static theme const fallback;
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
-
 // Byte offset after the first `count` code points of `text`.
 auto prefix_end(std::string_view text, std::size_t count) -> std::size_t {
   std::size_t at = 0;
@@ -86,8 +81,7 @@ tab::tab(std::string label) : line_(std::move(label), text_role::body_strong) {
 
 auto tab::set_label(std::string label) -> void {
   if (line_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -99,7 +93,7 @@ auto tab::set_selected(bool selected) -> void {
 }
 
 auto tab::request_selection() -> void {
-  if (auto *const bar = dynamic_cast<tab_bar *>(parent())) {
+  if (auto *const bar = parent_as<tab_bar>()) {
     if (auto const index = bar->index_of(*this)) {
       bar->select(*index);
     }
@@ -109,13 +103,12 @@ auto tab::request_selection() -> void {
 auto tab::set_closable(bool closable) -> void {
   if (closable != closable_) {
     closable_ = closable;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto tab::request_close() -> void {
-  if (auto *const bar = dynamic_cast<tab_bar *>(parent())) {
+  if (auto *const bar = parent_as<tab_bar>()) {
     if (auto const index = bar->index_of(*this)) {
       auto const handler = bar->on_close_;
       if (handler) {
@@ -127,7 +120,7 @@ auto tab::request_close() -> void {
 }
 
 auto tab::close_area() const -> rect {
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   float const side = resolve(fixed(16));
   float const edge = resolve(sizes.inset_horizontal_tab);
   return {{bounds().width() - edge - side, (bounds().height() - side) / 2}, {side, side}};
@@ -255,7 +248,7 @@ auto tab::on_event(event_context &, event const &e) -> bool {
 }
 
 auto tab::on_measure(constraints const &) const -> basalt::size {
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   float const close = closable_ ? resolve(fixed(16)) + resolve(fixed(4)) : 0.0f;
   return {line_.measure(*this).width + 2 * resolve(sizes.inset_horizontal_tab) + close,
           resolve(sizes.dimension_height_tab)};
@@ -265,7 +258,7 @@ auto tab::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = theme_of(*this);
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   switch (control_state_of(interaction(), enabled())) {
   case control_state::hovered:
@@ -457,7 +450,7 @@ auto tab_bar::on_event(event_context &, event const &e) -> bool {
 
 auto tab_bar::on_measure(constraints const &limits) const -> basalt::size {
   auto measured = box::on_measure(limits);
-  measured.height = std::max(measured.height, resolve(theme_of(*this).sizes.dimension_height_tab));
+  measured.height = std::max(measured.height, resolve(theme().sizes.dimension_height_tab));
   return measured;
 }
 
@@ -467,7 +460,7 @@ auto tab_bar::on_paint(render_context &context) const -> void {
   }
   float const height = device_stroke_width(fixed(1), scale());
   context.fill_rect({{0, bounds().height() - height}, {bounds().width(), height}},
-                    theme_of(*this).colors.border_subdued);
+                    theme().colors.border_subdued);
 }
 
 } // namespace basalt

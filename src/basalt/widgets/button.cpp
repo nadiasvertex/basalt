@@ -7,6 +7,8 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+
 namespace basalt {
 
 namespace {
@@ -23,30 +25,24 @@ struct button_colors {
 auto colors_for_button(theme const &t, button_variant variant, control_state state)
     -> button_colors {
   auto const &c = t.colors;
-  bool const hovered = state == control_state::hovered;
-  bool const pressed = state == control_state::pressed;
   switch (variant) {
   case button_variant::primary:
-    return {pressed   ? c.background_accent_active
-            : hovered ? c.background_accent_hover
-                      : c.background_accent,
-            c.text_default_on_dark, transparent};
+    return {
+        by_state(state, c.background_accent, c.background_accent_hover, c.background_accent_active),
+        c.text_default_on_dark, transparent};
   case button_variant::danger:
-    return {pressed   ? c.background_danger_active
-            : hovered ? c.background_danger_hover
-                      : c.background_danger,
-            c.text_default_on_dark, transparent};
+    return {
+        by_state(state, c.background_danger, c.background_danger_hover, c.background_danger_active),
+        c.text_default_on_dark, transparent};
   case button_variant::secondary:
-    return {pressed   ? c.background_accent_transparent_active
-            : hovered ? c.background_accent_transparent_hover
-                      : transparent,
+    return {by_state(state, transparent, c.background_accent_transparent_hover,
+                     c.background_accent_transparent_active),
             c.text_interactive, c.border_accent};
   case button_variant::tertiary:
     break;
   }
-  return {pressed   ? c.background_accent_transparent_active
-          : hovered ? c.background_accent_transparent_hover
-                    : transparent,
+  return {by_state(state, transparent, c.background_accent_transparent_hover,
+                   c.background_accent_transparent_active),
           c.text_interactive, transparent};
 }
 
@@ -60,8 +56,7 @@ button::button(std::string label, std::function<void()> on_press)
 
 auto button::set_label(std::string label) -> void {
   if (line_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -85,11 +80,7 @@ auto button::press() -> bool {
   if (!enabled_in_tree()) {
     return false;
   }
-  if (on_press_) {
-    // The handler may destroy this button; do not touch members afterwards.
-    auto const handler = on_press_;
-    handler();
-  }
+  notify(on_press_);
   return true;
 }
 
@@ -133,9 +124,7 @@ auto button::on_event(event_context &, event const &e) -> bool {
 }
 
 auto button::on_measure(constraints const &) const -> basalt::size {
-  widget_tree const *const t = tree();
-  basalt::theme const fallback;
-  auto const &sizes = (t != nullptr ? t->theme() : fallback).sizes;
+  auto const &sizes = theme().sizes;
   basalt::size const text = line_.measure(*this);
   float const padding = resolve(sizes.inset_horizontal_button) * 2;
   return {std::max(text.width + padding, resolve(sizes.dimension_width_element_min)),
@@ -146,7 +135,7 @@ auto button::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   auto const colors = colors_for_button(t, variant_, control_state_of(interaction(), enabled()));
   rect const area{{}, bounds().extent};
   float const radius = resolve(t.sizes.radius_default);

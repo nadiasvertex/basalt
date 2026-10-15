@@ -43,9 +43,9 @@ protected:
   // Enter also activates when true; Space always does.
   [[nodiscard]] virtual auto activates_on_enter() const -> bool { return false; }
   // The indicator's size in layout pixels.
-  [[nodiscard]] virtual auto indicator_size(theme const &t) const -> basalt::size = 0;
+  [[nodiscard]] virtual auto indicator_size(basalt::theme const &t) const -> basalt::size = 0;
   // Draws the indicator inside `box`, which has `indicator_size`.
-  virtual auto paint_indicator(render_context &context, rect box, theme const &t,
+  virtual auto paint_indicator(render_context &context, rect box, basalt::theme const &t,
                                control_state state) const -> void = 0;
   // Sets the role, state and actions; the name and description are added.
   virtual auto describe(accessibility::info &details) const -> void = 0;

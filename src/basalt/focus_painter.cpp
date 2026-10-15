@@ -6,9 +6,8 @@
 namespace basalt {
 
 auto make_focus_ring(widget const &w, focus_ring_shape const &shape) -> focus_ring {
-  basalt::theme const fallback;
   widget_tree const *const tree = w.tree();
-  basalt::theme const &theme = tree != nullptr ? tree->theme() : fallback;
+  basalt::theme const &theme = w.theme();
   scale_factors const scale = w.scale();
   float const width = device_stroke_width(theme.sizes.dimension_focus_ring, scale);
   float const gap = w.resolve(theme.sizes.gap_focus_ring);

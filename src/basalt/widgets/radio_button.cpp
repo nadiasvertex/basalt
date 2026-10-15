@@ -22,32 +22,29 @@ auto radio_button::set_selected(bool selected) -> void {
 }
 
 auto radio_button::perform_activation() -> void {
-  if (auto *const group = dynamic_cast<radio_group *>(parent())) {
+  if (auto *const group = parent_as<radio_group>()) {
     group->choose(*this);
     return;
   }
   set_selected(true);
 }
 
-auto radio_button::indicator_size(theme const &t) const -> basalt::size {
+auto radio_button::indicator_size(basalt::theme const &t) const -> basalt::size {
   float const side = resolve(t.sizes.dimension_checkbox_box);
   return {side, side};
 }
 
-auto radio_button::paint_indicator(render_context &context, rect box, theme const &t,
+auto radio_button::paint_indicator(render_context &context, rect box, basalt::theme const &t,
                                    control_state state) const -> void {
   auto const &c = t.colors;
-  bool const hovered = state == control_state::hovered;
-  bool const pressed = state == control_state::pressed;
   float const radius = box.width() / 2;
   float const width = device_stroke_width(fixed(1), scale());
-  rgba const accent = pressed   ? c.background_accent_active
-                      : hovered ? c.background_accent_hover
-                                : c.background_accent;
+  rgba const accent =
+      by_state(state, c.background_accent, c.background_accent_hover, c.background_accent_active);
   context.fill_rounded_rect(box, radius,
-                            pressed   ? c.background_accent_transparent_active
-                            : hovered ? c.background_accent_transparent_hover
-                                      : c.background_default);
+                            by_state(state, c.background_default,
+                                     c.background_accent_transparent_hover,
+                                     c.background_accent_transparent_active));
   context.stroke_rounded_rect(inset(box, insets::uniform(width / 2)), radius,
                               selected_ ? accent : c.border_default, width);
   if (selected_) {
@@ -69,7 +66,7 @@ auto radio_button::describe(a11y::info &details) const -> void {
 auto radio_button::on_event(event_context &context, event const &e) -> bool {
   if (auto const *k = std::get_if<key_event>(&e);
       k != nullptr && k->pressed && k->modifiers == modifier::none && tree() != nullptr &&
-      dynamic_cast<radio_group *>(parent()) != nullptr) {
+      parent_as<radio_group>() != nullptr) {
     focus_manager &focus = tree()->focus();
     bool moved = false;
     switch (k->code) {

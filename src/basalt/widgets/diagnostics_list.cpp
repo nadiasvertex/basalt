@@ -9,14 +9,12 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+#include "scroll_into_view.h"
+
 namespace basalt {
 
 namespace {
-
-auto theme_of(widget const &w) -> theme const & {
-  static theme const fallback;
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
 
 auto severity_name(diagnostic_severity severity) -> char const * {
   switch (severity) {
@@ -102,7 +100,7 @@ protected:
   }
 
   [[nodiscard]] auto on_measure(constraints const &) const -> basalt::size override {
-    auto const &sizes = theme_of(*this).sizes;
+    auto const &sizes = theme().sizes;
     basalt::size const message = message_.measure(*this);
     basalt::size const location = location_.measure(*this);
     float const gap = resolve(sizes.gap_horizontal_text_text);
@@ -117,7 +115,7 @@ protected:
     if (tree() == nullptr) {
       return;
     }
-    theme const &t = theme_of(*this);
+    basalt::theme const &t = theme();
     rect const area{{}, bounds().extent};
     if (has_focus()) {
       context.fill_rect(area, t.colors.background_accent_subdued);
@@ -135,11 +133,11 @@ protected:
 
 private:
   [[nodiscard]] auto icon_extent() const -> float {
-    return resolve(theme_of(*this).sizes.dimension_icon_small);
+    return resolve(theme().sizes.dimension_icon_small);
   }
 
   // Errors are filled circles, warnings triangles and notes ringed circles.
-  auto draw_icon(render_context &context, rect box, theme const &t) const -> void {
+  auto draw_icon(render_context &context, rect box, basalt::theme const &t) const -> void {
     float const stroke = device_stroke_width(fixed(2), scale());
     switch (entry_.severity) {
     case diagnostic_severity::error:
@@ -162,7 +160,7 @@ private:
   }
 
   auto activate() -> void {
-    if (auto *const list = dynamic_cast<diagnostics_list *>(parent())) {
+    if (auto *const list = parent_as<diagnostics_list>()) {
       if (auto const index = list->index_of(*this)) {
         list->row_activated(*index);
       }
@@ -211,17 +209,15 @@ auto diagnostics_list::focus_row(std::size_t index) -> bool {
 
 auto diagnostics_list::set_empty_message(std::string message) -> void {
   if (empty_.set_text(std::move(message))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto diagnostics_list::row_activated(std::size_t index) -> void {
-  if (index < entries_.size() && on_activate_) {
-    // The handler may replace the entries, so work on copies.
-    auto const handler = on_activate_;
+  if (index < entries_.size()) {
+    // The handler may replace the entries, so it gets a copy.
     auto const entry = entries_[index];
-    handler(index, entry);
+    notify(on_activate_, index, entry);
   }
 }
 
@@ -258,7 +254,7 @@ auto diagnostics_list::on_measure(constraints const &limits) const -> basalt::si
     return box::on_measure(limits);
   }
   basalt::size const text = empty_.measure(*this);
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   return {text.width + 2 * resolve(sizes.inset_horizontal_list_item),
           std::max(text.height, resolve(sizes.dimension_height_element_min))};
 }
@@ -267,7 +263,7 @@ auto diagnostics_list::on_paint(render_context &context) const -> void {
   if (tree() == nullptr || child_count() > 0) {
     return;
   }
-  theme const &t = theme_of(*this);
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   empty_.draw_in(context, *this,
                  inset(area, insets::symmetric(resolve(t.sizes.inset_horizontal_list_item), 0)),
@@ -275,15 +271,7 @@ auto diagnostics_list::on_paint(render_context &context) const -> void {
 }
 
 auto diagnostic_row::scroll_into_view() -> void {
-  for (widget *w = parent(); w != nullptr; w = w->parent()) {
-    if (auto *const view = dynamic_cast<scroll_view *>(w)) {
-      if (widget *const content = view->content()) {
-        view->scroll_into_view(
-            translated(rect{{}, bounds().extent}, to_root({}) - content->to_root({})));
-      }
-      return;
-    }
-  }
+  scroll_into_view_of(*this, {{}, bounds().extent});
 }
 
 } // namespace basalt

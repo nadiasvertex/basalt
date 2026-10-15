@@ -56,7 +56,7 @@ auto progress_bar::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  auto const &colors = tree()->theme().colors;
+  auto const &colors = theme().colors;
   basalt::size const extent = bounds().extent;
   float const radius = extent.height / 2;
   context.fill_rounded_rect({{}, extent}, radius, colors.background_tertiary);

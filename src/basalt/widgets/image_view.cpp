@@ -12,8 +12,7 @@ auto image_view::set_image(raster_image_ptr image) -> void {
     return;
   }
   image_ = std::move(image);
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto image_view::set_description(std::string description) -> void {

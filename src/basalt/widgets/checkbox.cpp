@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "glyphs.h"
+#include "notify.h"
 
 namespace basalt {
 
@@ -25,40 +26,31 @@ auto checkbox::set_state(a11y::check_state state) -> void {
 auto checkbox::perform_activation() -> void {
   set_state(state_ == a11y::check_state::checked ? a11y::check_state::unchecked
                                                  : a11y::check_state::checked);
-  if (on_change_) {
-    // The handler may destroy this checkbox; do not touch members afterwards.
-    auto const handler = on_change_;
-    handler(state_);
-  }
+  notify(on_change_, state_);
 }
 
-auto checkbox::indicator_size(theme const &t) const -> basalt::size {
+auto checkbox::indicator_size(basalt::theme const &t) const -> basalt::size {
   float const side = resolve(t.sizes.dimension_checkbox_box);
   return {side, side};
 }
 
-auto checkbox::paint_indicator(render_context &context, rect box, theme const &t,
+auto checkbox::paint_indicator(render_context &context, rect box, basalt::theme const &t,
                                control_state state) const -> void {
   auto const &c = t.colors;
-  bool const hovered = state == control_state::hovered;
-  bool const pressed = state == control_state::pressed;
   float const radius = resolve(t.sizes.radius_default) / 2;
   float const width = device_stroke_width(fixed(1), scale());
   if (state_ == a11y::check_state::unchecked) {
-    rgba const fill = pressed   ? c.background_accent_transparent_active
-                      : hovered ? c.background_accent_transparent_hover
-                                : c.background_default;
+    rgba const fill = by_state(state, c.background_default, c.background_accent_transparent_hover,
+                               c.background_accent_transparent_active);
     context.fill_rounded_rect(box, radius, fill);
     context.stroke_rounded_rect(inset(box, insets::uniform(width / 2)), radius,
                                 has_error() ? c.border_danger : c.border_default, width);
     return;
   }
-  rgba const fill = has_error() ? (pressed   ? c.background_danger_active
-                                   : hovered ? c.background_danger_hover
-                                             : c.background_danger)
-                                : (pressed   ? c.background_accent_active
-                                   : hovered ? c.background_accent_hover
-                                             : c.background_accent);
+  rgba const fill = has_error() ? by_state(state, c.background_danger, c.background_danger_hover,
+                                           c.background_danger_active)
+                                : by_state(state, c.background_accent, c.background_accent_hover,
+                                           c.background_accent_active);
   context.fill_rounded_rect(box, radius, fill);
   float const mark = device_stroke_width(fixed(2), scale());
   if (state_ == a11y::check_state::checked) {
@@ -94,11 +86,8 @@ auto checkbox_group::add_option(std::string label, bool checked) -> checkbox & {
                                                                   : a11y::check_state::unchecked);
   added.set_on_change([this, &added](a11y::check_state) {
     refresh_select_all();
-    if (on_change_) {
-      auto const handler = on_change_;
-      auto const index = index_of(added);
-      handler(index ? *index - first_option_child() : 0);
-    }
+    auto const index = index_of(added);
+    notify(on_change_, index ? *index - first_option_child() : 0);
   });
   refresh_select_all();
   return added;

@@ -8,6 +8,8 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+
 namespace basalt {
 
 auto scroll_bar::set_metrics(float content, float viewport, float offset) -> void {
@@ -50,9 +52,8 @@ auto scroll_bar::thumb_rect() const -> rect {
 
 auto scroll_bar::request_offset(float offset) -> void {
   float const next = std::clamp(offset, 0.0f, max_offset());
-  if (next != offset_ && on_scroll_) {
-    auto const handler = on_scroll_;
-    handler(next);
+  if (next != offset_) {
+    notify(on_scroll_, next);
   }
 }
 
@@ -130,7 +131,7 @@ auto scroll_bar::on_paint(render_context &context) const -> void {
   if (tree() == nullptr || thumb.empty()) {
     return;
   }
-  auto const &colors = tree()->theme().colors;
+  auto const &colors = theme().colors;
   rgba const fill = dragging_ || interaction().pressed ? colors.icon_default
                     : interaction().hovered            ? colors.icon_neutral_default
                                                        : colors.icon_subdued;

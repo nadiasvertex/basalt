@@ -76,8 +76,7 @@ protected:
   }
 
   [[nodiscard]] auto on_measure(constraints const &limits) const -> basalt::size override {
-    basalt::theme const fallback;
-    theme const &t = theme_of(fallback);
+    basalt::theme const &t = theme();
     basalt::size const text = owner_.heading_.measure(*this);
     float const inset = resolve(t.sizes.inset_horizontal_accordion_header);
     float const mark = resolve(t.sizes.dimension_icon);
@@ -91,8 +90,7 @@ protected:
     if (actions_ == nullptr) {
       return;
     }
-    basalt::theme const fallback;
-    theme const &t = theme_of(fallback);
+    basalt::theme const &t = theme();
     float const inset = resolve(t.sizes.inset_horizontal_accordion_header);
     basalt::size const wanted = actions_->measure(constraints::loose(bounds().extent));
     actions_->set_bounds(
@@ -104,7 +102,7 @@ protected:
     if (tree() == nullptr) {
       return;
     }
-    theme const &t = tree()->theme();
+    basalt::theme const &t = theme();
     rect const area{{}, bounds().extent};
     float const stroke = device_stroke_width(fixed(1), scale());
     switch (control_state_of(interaction(), enabled())) {
@@ -142,10 +140,6 @@ protected:
   }
 
 private:
-  [[nodiscard]] auto theme_of(basalt::theme const &fallback) const -> theme const & {
-    return tree() != nullptr ? tree()->theme() : fallback;
-  }
-
   accordion_item &owner_;
   widget *actions_ = nullptr;
 };
@@ -165,8 +159,7 @@ auto accordion_item::header() const -> widget & { return *header_; }
 
 auto accordion_item::set_heading(std::string heading) -> void {
   if (heading_.set_text(std::move(heading))) {
-    header_->invalidate_layout();
-    header_->invalidate_paint();
+    header_->invalidate_content();
   }
 }
 
@@ -207,7 +200,7 @@ auto accordion_item::toggle() -> void {
 }
 
 auto accordion_item::user_toggled() -> void {
-  if (auto *const owner = dynamic_cast<accordion *>(parent()); owner != nullptr && expanded_) {
+  if (auto *const owner = parent_as<accordion>(); owner != nullptr && expanded_) {
     owner->item_expanded(*this);
   }
   if (on_toggle_) {
@@ -222,8 +215,7 @@ auto accordion_item::set_size(control_size size) -> void {
   heading_.set_role(size == control_size::small   ? text_role::small_strong
                     : size == control_size::large ? text_role::large
                                                   : text_role::body_strong);
-  header_->invalidate_layout();
-  header_->invalidate_paint();
+  header_->invalidate_content();
 }
 
 auto accordion_item::set_appearance(accordion_appearance appearance) -> void {

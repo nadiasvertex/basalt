@@ -4,6 +4,8 @@
 
 #include <utility>
 
+#include "notify.h"
+
 namespace basalt {
 
 toggle::toggle(std::string label, bool on, control_size size)
@@ -38,30 +40,22 @@ auto toggle::refresh_status() -> void {
 
 auto toggle::perform_activation() -> void {
   set_on(!on_);
-  if (on_change_) {
-    // The handler may destroy this toggle; do not touch members afterwards.
-    auto const handler = on_change_;
-    handler(on_);
-  }
+  notify(on_change_, on_);
 }
 
-auto toggle::indicator_size(theme const &t) const -> basalt::size {
+auto toggle::indicator_size(basalt::theme const &t) const -> basalt::size {
   return {resolve(t.sizes.dimension_width_toggle_track),
           resolve(t.sizes.dimension_height_toggle_track)};
 }
 
-auto toggle::paint_indicator(render_context &context, rect box, theme const &t,
+auto toggle::paint_indicator(render_context &context, rect box, basalt::theme const &t,
                              control_state state) const -> void {
   auto const &c = t.colors;
-  bool const hovered = state == control_state::hovered;
-  bool const pressed = state == control_state::pressed;
   float const radius = box.height() / 2;
-  rgba const fill = on_ ? (pressed   ? c.background_accent_active
-                           : hovered ? c.background_accent_hover
-                                     : c.background_accent)
-                        : (pressed   ? c.background_neutral_active
-                           : hovered ? c.background_neutral_hover
-                                     : c.background_secondary);
+  rgba const fill = on_ ? by_state(state, c.background_accent, c.background_accent_hover,
+                                   c.background_accent_active)
+                        : by_state(state, c.background_secondary, c.background_neutral_hover,
+                                   c.background_neutral_active);
   context.fill_rounded_rect(box, radius, fill);
   if (!on_) {
     float const width = device_stroke_width(fixed(1), scale());

@@ -27,6 +27,7 @@ class event_context;
 class event_router;
 class focus_manager;
 class render_context;
+struct theme;
 class widget_tree;
 
 enum class widget_state : std::uint8_t {
@@ -68,7 +69,7 @@ enum class widget_state : std::uint8_t {
 //
 // Painting: `on_paint` records the widget's own drawing and `paint_tree`
 // (see basalt/widget_painter.h) recurses into the children and then calls
-// `on_paint_overlay`. Widgets read their appearance from `tree()->theme()`.
+// `on_paint_overlay`. Widgets read their appearance from `theme()`.
 //
 // Input: an `event_router` delivers events to `on_event`, starting at the
 // target and bubbling to the root until a widget returns true. Disabled
@@ -90,6 +91,19 @@ public:
   // Null for a tree root and for the top of a detached subtree.
   [[nodiscard]] auto parent() const -> widget * { return parent_; }
   [[nodiscard]] auto is_ancestor_of(widget const &other) const -> bool;
+  // The nearest strict ancestor that is a `T`, or null.
+  template <std::derived_from<widget> T> [[nodiscard]] auto find_ancestor() const -> T * {
+    for (widget *w = parent_; w != nullptr; w = w->parent_) {
+      if (auto *const match = dynamic_cast<T *>(w)) {
+        return match;
+      }
+    }
+    return nullptr;
+  }
+  // The parent when it is a `T`, or null.
+  template <std::derived_from<widget> T> [[nodiscard]] auto parent_as() const -> T * {
+    return dynamic_cast<T *>(parent_);
+  }
 
   [[nodiscard]] auto child_count() const -> std::size_t { return children_.size(); }
   // Precondition: `index < child_count()`.
@@ -144,6 +158,8 @@ public:
   // to `limits`. Answers are remembered until layout is invalidated.
   [[nodiscard]] auto measure(constraints const &limits) const -> basalt::size;
 
+  // The tree's theme, or one default theme while detached.
+  [[nodiscard]] auto theme() const -> basalt::theme const &;
   // The tree's scale factors, or the defaults while detached.
   [[nodiscard]] auto scale() const -> scale_factors;
   // `l` in layout pixels under `scale()`.
@@ -213,6 +229,8 @@ public:
   // Ignored while detached or hidden.
   auto invalidate_paint() -> void;
   auto invalidate_paint(rect local) -> void;
+  // `invalidate_layout()` and `invalidate_paint()`, for a change in content.
+  auto invalidate_content() -> void;
   [[nodiscard]] auto needs_layout() const -> bool { return needs_layout_; }
   // True when this widget or a descendant needs layout.
   [[nodiscard]] auto subtree_needs_layout() const -> bool {

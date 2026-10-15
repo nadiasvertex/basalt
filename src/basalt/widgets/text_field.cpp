@@ -12,6 +12,9 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+#include "scroll_into_view.h"
+
 namespace basalt {
 
 namespace {
@@ -43,11 +46,6 @@ auto flatten_line_breaks(std::string_view text) -> std::string {
     flat.push_back(text[i] == '\n' || text[i] == '\r' ? ' ' : text[i]);
   }
   return flat;
-}
-
-auto theme_of(widget const &w) -> theme const & {
-  static theme const fallback;
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
 }
 
 } // namespace
@@ -160,7 +158,7 @@ auto text_field::padding() const -> insets {
   if (!framed_) {
     return {};
   }
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   return insets::symmetric(resolve(sizes.inset_horizontal_input),
                            resolve(sizes.inset_vertical_text_area));
 }
@@ -170,7 +168,7 @@ auto text_field::content_width() const -> float {
 }
 
 auto text_field::line_height() const -> float {
-  text_style const style = to_layout(text_style_for(theme_of(*this), role_), scale());
+  text_style const style = to_layout(text_style_for(theme(), role_), scale());
   return style.line_height > 0 ? style.line_height : style.font_size * 1.25f;
 }
 
@@ -203,7 +201,7 @@ auto text_field::paragraph_for(float width) const -> text::paragraph const * {
   if (shaper == nullptr) {
     return nullptr;
   }
-  text_style const style = to_layout(text_style_for(theme_of(*this), role_), scale());
+  text_style const style = to_layout(text_style_for(theme(), role_), scale());
   std::string shown = display_text();
   if (!cache_.valid || cache_.shaper != shaper || cache_.style != style || cache_.width != width ||
       cache_.wrap != multiline_ || cache_.text != shown) {
@@ -256,8 +254,7 @@ auto text_field::set_text(std::string text) -> void {
   goal_x_.reset();
   affinity_ = text::caret_affinity::downstream;
   scroll_x_ = 0;
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto text_field::set_multiline(bool multiline) -> void {
@@ -272,8 +269,7 @@ auto text_field::set_multiline(bool multiline) -> void {
     }
   }
   scroll_x_ = 0;
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto text_field::set_placeholder(std::string placeholder) -> void {
@@ -293,16 +289,14 @@ auto text_field::set_read_only(bool read_only) -> void {
 auto text_field::set_role(text_role role) -> void {
   if (role != role_) {
     role_ = role;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto text_field::set_framed(bool framed) -> void {
   if (framed != framed_) {
     framed_ = framed;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -355,24 +349,13 @@ auto text_field::reveal_caret() -> void {
     }
     return;
   }
-  for (widget *w = parent(); w != nullptr; w = w->parent()) {
-    if (auto *const view = dynamic_cast<scroll_view *>(w)) {
-      if (widget *const content = view->content()) {
-        point const base = content->to_root({});
-        view->scroll_into_view(translated(caret, to_root({}) - base));
-      }
-      return;
-    }
-  }
+  scroll_into_view_of(*this, caret);
 }
 
 auto text_field::notify_change() -> void {
-  if (on_change_) {
-    // The handler may destroy this field.
-    auto const handler = on_change_;
-    auto const value = text_;
-    handler(value);
-  }
+  // The handler may destroy this field, so it gets a copy of the text.
+  auto const value = text_;
+  notify(on_change_, value);
 }
 
 auto text_field::replace_range(std::size_t begin, std::size_t end, std::string_view replacement)
@@ -383,8 +366,7 @@ auto text_field::replace_range(std::size_t begin, std::size_t end, std::string_v
   anchor_ = caret_ = begin + replacement.size();
   goal_x_.reset();
   affinity_ = text::caret_affinity::downstream;
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
   reveal_caret();
   notify_change();
 }
@@ -406,8 +388,7 @@ auto text_field::set_preedit(std::string preedit) -> void {
     return;
   }
   preedit_ = std::move(preedit);
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
   reveal_caret();
 }
 
@@ -699,7 +680,7 @@ auto text_field::on_accessibility_action(accessibility::action_request const &re
 
 auto text_field::on_measure(constraints const &limits) const -> basalt::size {
   insets const pad = padding();
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   float const line = line_height();
   if (!multiline_) {
     return {resolve(preferred_width_),
@@ -718,7 +699,7 @@ auto text_field::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   if (framed_) {
     float const radius = resolve(t.sizes.radius_default);

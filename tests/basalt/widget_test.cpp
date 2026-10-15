@@ -216,3 +216,57 @@ TEST_CASE("joining a tree drops answers measured while detached", "[widget][layo
   (void)added.measure(limits);
   REQUIRE(added.measures == 2);
 }
+
+namespace {
+
+struct derived_widget : widget {};
+
+} // namespace
+
+TEST_CASE("theme is the tree's theme, or the default while detached", "[widget][theme]") {
+  widget detached;
+  REQUIRE(detached.theme() == basalt::theme{});
+
+  auto const dark = make_theme(color_scheme::dark);
+  widget_tree tree{dark};
+  auto &root = tree.emplace_root<widget>();
+  auto &child = root.emplace_child<widget>();
+  REQUIRE(root.theme() == dark);
+  REQUIRE(child.theme() == dark);
+  REQUIRE(&child.theme() == &tree.theme());
+}
+
+TEST_CASE("find_ancestor returns the nearest ancestor of the type", "[widget]") {
+  derived_widget outer;
+  auto &inner = outer.emplace_child<derived_widget>();
+  auto &plain = inner.emplace_child<widget>();
+  auto &leaf = plain.emplace_child<widget>();
+  REQUIRE(leaf.find_ancestor<derived_widget>() == &inner);
+  REQUIRE(inner.find_ancestor<derived_widget>() == &outer);
+  REQUIRE(outer.find_ancestor<derived_widget>() == nullptr);
+  REQUIRE(leaf.parent_as<derived_widget>() == nullptr);
+  REQUIRE(plain.parent_as<derived_widget>() == &inner);
+}
+
+TEST_CASE("invalidate_content requests layout and repaint", "[widget][layout]") {
+  widget_tree tree;
+  tree.set_viewport({100, 100});
+  auto &root = tree.emplace_root<widget>();
+  auto &leaf = root.emplace_child<widget>();
+  tree.update_layout();
+  (void)tree.take_damage();
+  REQUIRE_FALSE(leaf.needs_layout());
+  REQUIRE(tree.damage().empty());
+
+  leaf.invalidate_content();
+  REQUIRE(leaf.needs_layout());
+  REQUIRE(root.subtree_needs_layout());
+}
+
+TEST_CASE("by_state picks the value for the control state", "[interaction]") {
+  using enum control_state;
+  REQUIRE(by_state(normal, 1, 2, 3) == 1);
+  REQUIRE(by_state(hovered, 1, 2, 3) == 2);
+  REQUIRE(by_state(pressed, 1, 2, 3) == 3);
+  REQUIRE(by_state(disabled, 1, 2, 3) == 1);
+}

@@ -8,6 +8,8 @@
 #include <utility>
 #include <variant>
 
+#include "notify.h"
+
 namespace basalt {
 
 namespace {
@@ -15,12 +17,7 @@ namespace {
 // Gap between the label and the shortcut hint.
 constexpr length hint_gap = fixed(24);
 
-auto theme_of(widget const &w) -> theme const & {
-  static theme const fallback;
-  return w.tree() != nullptr ? w.tree()->theme() : fallback;
-}
-
-auto check_column(widget const &w) -> float { return w.resolve(theme_of(w).sizes.dimension_icon); }
+auto check_column(widget const &w) -> float { return w.resolve(w.theme().sizes.dimension_icon); }
 
 } // namespace
 
@@ -34,23 +31,20 @@ menu_item::menu_item(std::string id, std::string label, std::string shortcut,
 
 auto menu_item::set_label(std::string label) -> void {
   if (label_.set_text(std::move(label))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto menu_item::set_shortcut(std::string shortcut) -> void {
   if (shortcut_.set_text(std::move(shortcut))) {
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
 auto menu_item::set_checked(std::optional<bool> checked) -> void {
   if (checked != checked_) {
     checked_ = checked;
-    invalidate_layout();
-    invalidate_paint();
+    invalidate_content();
   }
 }
 
@@ -124,7 +118,7 @@ auto menu_item::on_event(event_context &, event const &e) -> bool {
 }
 
 auto menu_item::on_measure(constraints const &) const -> basalt::size {
-  auto const &sizes = theme_of(*this).sizes;
+  auto const &sizes = theme().sizes;
   basalt::size const text = label_.measure(*this);
   basalt::size const hint = shortcut_.measure(*this);
   float const gap = hint.width > 0 ? resolve(hint_gap) : 0;
@@ -138,7 +132,7 @@ auto menu_item::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = theme_of(*this);
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   switch (control_state_of(interaction(), enabled())) {
   case control_state::hovered:
@@ -193,12 +187,9 @@ auto menu::find_item(std::string const &id) const -> menu_item * {
 }
 
 auto menu::item_activated(menu_item const &item) -> void {
-  if (on_activate_) {
-    // The handler may remove the menu; copy what it needs first.
-    auto const handler = on_activate_;
-    auto const id = item.item_id();
-    handler(id);
-  }
+  // The handler may remove the menu, so it gets a copy of the id.
+  auto const id = item.item_id();
+  notify(on_activate_, id);
 }
 
 auto menu::accessibility_info() const -> accessibility::info {
@@ -226,10 +217,7 @@ auto menu::on_event(event_context &, event const &e) -> bool {
     case key::end:
       return focus.move_focus_in_group(focus_move::last);
     case key::escape:
-      if (on_dismiss_) {
-        auto const handler = on_dismiss_;
-        handler();
-      }
+      notify(on_dismiss_);
       return true;
     default:
       break;
@@ -242,7 +230,7 @@ auto menu::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  theme const &t = tree()->theme();
+  basalt::theme const &t = theme();
   rect const area{{}, bounds().extent};
   float const radius = resolve(t.sizes.radius_default);
   float const width = device_stroke_width(fixed(1), scale());

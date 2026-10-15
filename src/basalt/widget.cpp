@@ -146,6 +146,11 @@ auto widget::measure(constraints const &limits) const -> basalt::size {
 
 auto widget::drop_measurements() const -> void { measured_.fill(std::nullopt); }
 
+auto widget::theme() const -> basalt::theme const & {
+  static basalt::theme const fallback;
+  return tree_ != nullptr ? tree_->theme() : fallback;
+}
+
 auto widget::scale() const -> scale_factors {
   return tree_ != nullptr ? tree_->scale() : scale_factors{};
 }
@@ -242,9 +247,7 @@ auto widget::paint(render_context &context) const -> void { on_paint(context); }
 auto widget::paint_overlay(render_context &context) const -> void { on_paint_overlay(context); }
 
 auto widget::focus_ring() const -> std::optional<focus_ring_shape> {
-  basalt::theme const fallback;
-  basalt::theme const &theme = tree_ != nullptr ? tree_->theme() : fallback;
-  return focus_ring_shape{{{}, bounds_.extent}, resolve(theme.sizes.radius_default)};
+  return focus_ring_shape{{{}, bounds_.extent}, resolve(theme().sizes.radius_default)};
 }
 
 auto widget::set_interaction_flag(bool interaction_state::*flag, bool value) -> void {
@@ -262,6 +265,11 @@ auto widget::invalidate_layout() -> void {
     w->needs_layout_ = true;
     w->drop_measurements();
   }
+}
+
+auto widget::invalidate_content() -> void {
+  invalidate_layout();
+  invalidate_paint();
 }
 
 auto widget::request_animation_frame() -> void {

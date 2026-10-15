@@ -48,15 +48,14 @@ auto split_view::set_resizable(bool resizable) -> void {
   } else if (splitter *const h = handle()) {
     (void)remove_child(*h);
   }
-  invalidate_layout();
-  invalidate_paint();
+  invalidate_content();
 }
 
 auto split_view::on_paint(render_context &context) const -> void {
   if (resizable_ || divider_.empty() || tree() == nullptr) {
     return;
   }
-  context.fill_rect(divider_, tree()->theme().colors.border_subdued);
+  context.fill_rect(divider_, theme().colors.border_subdued);
 }
 
 auto split_view::on_child_removed(widget &child) -> void {

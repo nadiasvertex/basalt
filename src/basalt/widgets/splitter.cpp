@@ -106,7 +106,7 @@ auto splitter::on_paint(render_context &context) const -> void {
   if (tree() == nullptr) {
     return;
   }
-  auto const &colors = tree()->theme().colors;
+  auto const &colors = theme().colors;
   bool const active = dragging_ || interaction().hovered || interaction().pressed;
   float const thickness = std::max(device_stroke_width(owner_->divider_thickness(), scale()),
                                    active ? device_stroke_width(fixed(2), scale()) : 0.0f);
