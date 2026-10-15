@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <iterator>
 #include <limits>
+#include <memory>
 #include <utility>
 #include <variant>
 
@@ -47,6 +48,28 @@ auto flatten_line_breaks(std::string_view text) -> std::string {
   }
   return flat;
 }
+
+// The line of a block that holds a document offset.
+struct line_position {
+  std::shared_ptr<text::paragraph const> paragraph;
+  std::size_t block = 0;
+  // Document offset of the block's first byte.
+  std::size_t base = 0;
+  std::size_t line = 0;
+};
+
+auto line_at(text::text_layout &layout, std::size_t offset, text::caret_affinity affinity)
+    -> line_position {
+  line_position at;
+  at.block = layout.block_at_offset(offset);
+  at.paragraph = layout.paragraph_of(at.block);
+  at.base = layout.block_begin(at.block);
+  at.line = at.paragraph->line_of(offset - at.base, affinity);
+  return at;
+}
+
+// Every block is measured, so heights and tops are exact.
+constexpr float whole_document = std::numeric_limits<float>::max();
 
 } // namespace
 
@@ -195,35 +218,85 @@ auto text_field::from_display(std::size_t offset) const -> std::size_t {
   return offset >= caret_ + preedit_.size() ? offset - preedit_.size() : caret_;
 }
 
-auto text_field::paragraph_for(float width) const -> text::paragraph const * {
+auto text_field::layout_for(float width) const -> text::text_layout * {
   widget_tree const *const t = tree();
   text::text_shaper const *const shaper = t != nullptr ? t->text_shaper() : nullptr;
   if (shaper == nullptr) {
+    cache_ = {};
     return nullptr;
   }
   text_style const style = to_layout(text_style_for(theme(), role_), scale());
-  std::size_t const preedit_at = preedit_.empty() ? std::string::npos : caret_;
-  if (!cache_.valid || cache_.shaper != shaper || cache_.style != style || cache_.width != width ||
-      cache_.preedit_at != preedit_at) {
-    std::string const shown = display_text();
-    text::paragraph_options options;
-    options.shape.style = style;
-    options.wrap = multiline_;
-    options.max_width = width;
+  text::text_layout_options options;
+  options.paragraph.shape.style = style;
+  options.paragraph.wrap = multiline_;
+  // The field draws every block, so none may be evicted.
+  options.max_cached_paragraphs = std::numeric_limits<std::size_t>::max();
+  if (cache_.layout == nullptr || cache_.shaper != shaper) {
     cache_ = {.shaper = shaper,
               .style = style,
-              .width = width,
-              .preedit_at = preedit_at,
-              .laid_out = std::make_shared<text::paragraph const>(*shaper, shown, options),
-              .valid = true};
+              .wrap = multiline_,
+              .layout = std::make_unique<text::text_layout>(*shaper, display_text(), options),
+              .applied_preedit = preedit_,
+              .applied_at = caret_};
+  } else {
+    if (cache_.style != style || cache_.wrap != multiline_) {
+      cache_.layout->set_options(std::move(options));
+      cache_.style = style;
+      cache_.wrap = multiline_;
+    }
+    sync_preedit();
   }
-  return cache_.laid_out.get();
+  cache_.layout->set_width(width);
+  return cache_.layout.get();
+}
+
+auto text_field::remove_applied_preedit() const -> void {
+  if (cache_.applied_preedit.empty()) {
+    return;
+  }
+  cache_.layout->replace(cache_.applied_at, cache_.applied_at + cache_.applied_preedit.size(), {});
+  cache_.applied_preedit.clear();
+}
+
+auto text_field::sync_preedit() const -> void {
+  if (!cache_.applied_preedit.empty() &&
+      (cache_.applied_preedit != preedit_ || cache_.applied_at != caret_)) {
+    remove_applied_preedit();
+  }
+  if (!preedit_.empty() && cache_.applied_preedit.empty()) {
+    cache_.layout->replace(caret_, caret_, preedit_);
+    cache_.applied_preedit = preedit_;
+    cache_.applied_at = caret_;
+  }
+}
+
+auto text_field::edit_layout(std::size_t begin, std::size_t end, std::string_view replacement)
+    -> void {
+  if (cache_.layout == nullptr) {
+    return;
+  }
+  remove_applied_preedit();
+  cache_.layout->replace(begin, end, replacement);
+}
+
+auto text_field::move_to_line_edge(bool forward, bool extend) -> bool {
+  text::text_layout *const layout = layout_for(content_width());
+  if (layout == nullptr) {
+    return false;
+  }
+  line_position const at = line_at(*layout, display_caret(), affinity_);
+  auto const &line = at.paragraph->lines()[at.line];
+  move_caret(from_display(at.base + (forward ? line.end : line.begin)), extend);
+  if (forward && line.wrapped) {
+    affinity_ = text::caret_affinity::upstream;
+  }
+  return true;
 }
 
 auto text_field::caret_rect() const -> rect {
   point const origin = content_origin();
-  if (text::paragraph const *const p = paragraph_for(content_width())) {
-    return translated(p->caret_rect(display_caret(), affinity_), origin);
+  if (text::text_layout *const layout = layout_for(content_width())) {
+    return translated(layout->caret_rect(display_caret(), affinity_), origin);
   }
   float const height = line_height();
   std::size_t const row =
@@ -234,8 +307,8 @@ auto text_field::caret_rect() const -> rect {
 
 auto text_field::offset_at(point position) const -> std::size_t {
   point const local = position - content_origin();
-  if (text::paragraph const *const p = paragraph_for(content_width())) {
-    return from_display(p->hit_test(local).offset);
+  if (text::text_layout *const layout = layout_for(content_width())) {
+    return from_display(layout->hit_test(local).offset);
   }
   return local.x <= 0 ? 0 : text_.size();
 }
@@ -247,8 +320,8 @@ auto text_field::set_text(std::string text) -> void {
   if (text == text_ && preedit_.empty()) {
     return;
   }
+  edit_layout(0, text_.size(), text);
   text_ = std::move(text);
-  cache_.valid = false;
   boundaries_valid_ = false;
   preedit_.clear();
   anchor_ = caret_ = text_.size();
@@ -263,7 +336,6 @@ auto text_field::set_multiline(bool multiline) -> void {
     return;
   }
   multiline_ = multiline;
-  cache_.valid = false;
   if (!multiline_) {
     auto const flat = flatten_line_breaks(text_);
     if (flat != text_) {
@@ -291,7 +363,6 @@ auto text_field::set_read_only(bool read_only) -> void {
 auto text_field::set_role(text_role role) -> void {
   if (role != role_) {
     role_ = role;
-    cache_.valid = false;
     invalidate_content();
   }
 }
@@ -343,8 +414,8 @@ auto text_field::reveal_caret() -> void {
       scroll_x_ = x + 1 - visible;
     }
     float limit = 0;
-    if (text::paragraph const *const p = paragraph_for(unbounded)) {
-      limit = std::max(0.0f, p->extent().width + 1 - visible);
+    if (text::text_layout *const layout = layout_for(unbounded)) {
+      limit = std::max(0.0f, layout->paragraph_of(0)->extent().width + 1 - visible);
     }
     scroll_x_ = std::clamp(scroll_x_, 0.0f, limit);
     if (scroll_x_ != before) {
@@ -363,8 +434,8 @@ auto text_field::notify_change() -> void {
 
 auto text_field::replace_range(std::size_t begin, std::size_t end, std::string_view replacement)
     -> void {
+  edit_layout(begin, end, replacement);
   text_.replace(begin, end - begin, replacement);
-  cache_.valid = false;
   boundaries_valid_ = false;
   preedit_.clear();
   anchor_ = caret_ = begin + replacement.size();
@@ -392,7 +463,6 @@ auto text_field::set_preedit(std::string preedit) -> void {
     return;
   }
   preedit_ = std::move(preedit);
-  cache_.valid = false;
   invalidate_content();
   reveal_caret();
 }
@@ -408,23 +478,43 @@ auto text_field::move_caret(std::size_t to, bool extend) -> void {
 }
 
 auto text_field::move_vertically(int direction, bool extend) -> bool {
-  text::paragraph const *const p = paragraph_for(content_width());
-  if (p == nullptr) {
+  text::text_layout *const layout = layout_for(content_width());
+  if (layout == nullptr) {
     return false;
   }
   if (!preedit_.empty()) {
     return true;
   }
-  std::size_t const line = p->line_of(caret_, affinity_);
-  bool const first = direction < 0 && line == 0;
-  bool const last = direction > 0 && line + 1 >= p->lines().size();
-  if (first || last) {
-    move_caret(first ? 0 : text_.size(), extend);
+  line_position const at = line_at(*layout, caret_, affinity_);
+  std::size_t block = at.block;
+  std::size_t line = at.line;
+  bool enter_last_line = false;
+  if (direction < 0) {
+    if (line > 0) {
+      --line;
+    } else if (block > 0) {
+      --block;
+      enter_last_line = true;
+    } else {
+      move_caret(0, extend);
+      return true;
+    }
+  } else if (line + 1 < at.paragraph->lines().size()) {
+    ++line;
+  } else if (block + 1 < layout->block_count()) {
+    ++block;
+    line = 0;
+  } else {
+    move_caret(text_.size(), extend);
     return true;
   }
-  float const x = goal_x_.value_or(p->caret_rect(caret_, affinity_).left());
-  text::text_hit const hit = p->hit_test_line(direction < 0 ? line - 1 : line + 1, x);
-  caret_ = snap(hit.offset);
+  float const x = goal_x_.value_or(at.paragraph->caret_rect(caret_ - at.base, affinity_).left());
+  auto const target = block == at.block ? at.paragraph : layout->paragraph_of(block);
+  if (enter_last_line) {
+    line = target->lines().size() - 1;
+  }
+  text::text_hit const hit = target->hit_test_line(line, x);
+  caret_ = snap(layout->block_begin(block) + hit.offset);
   if (!extend) {
     anchor_ = caret_;
   }
@@ -447,15 +537,10 @@ auto text_field::handle_key(key_event const &k) -> bool {
   case key::right: {
     bool const forward = k.code == key::right;
     if (meta && !alt && !ctrl) {
-      auto const [begin, end] = line_bounds(caret_);
-      if (text::paragraph const *const p = paragraph_for(content_width()); p != nullptr) {
-        auto const &line = p->lines()[p->line_of(display_caret(), affinity_)];
-        move_caret(from_display(forward ? line.end : line.begin), shift);
-        if (forward && line.wrapped) {
-          affinity_ = text::caret_affinity::upstream;
-        }
+      if (move_to_line_edge(forward, shift)) {
         return true;
       }
+      auto const [begin, end] = line_bounds(caret_);
       move_caret(forward ? end : begin, shift);
       return true;
     }
@@ -476,12 +561,7 @@ auto text_field::handle_key(key_event const &k) -> bool {
       move_caret(forward ? text_.size() : 0, shift);
       return true;
     }
-    if (text::paragraph const *const p = paragraph_for(content_width()); p != nullptr) {
-      auto const &line = p->lines()[p->line_of(display_caret(), affinity_)];
-      move_caret(from_display(forward ? line.end : line.begin), shift);
-      if (forward && line.wrapped) {
-        affinity_ = text::caret_affinity::upstream;
-      }
+    if (move_to_line_edge(forward, shift)) {
       return true;
     }
     auto const [begin, end] = line_bounds(caret_);
@@ -554,8 +634,8 @@ auto text_field::handle_pointer(pointer_event const &p) -> bool {
     point const local = p.position - content_origin();
     std::size_t offset = 0;
     text::caret_affinity affinity = text::caret_affinity::downstream;
-    if (text::paragraph const *const para = paragraph_for(content_width())) {
-      text::text_hit const hit = para->hit_test(local);
+    if (text::text_layout *const layout = layout_for(content_width())) {
+      text::text_hit const hit = layout->hit_test(local);
       offset = from_display(hit.offset);
       affinity = hit.affinity;
     } else {
@@ -595,8 +675,8 @@ auto text_field::handle_pointer(pointer_event const &p) -> bool {
       return false;
     }
     point const local = p.position - content_origin();
-    if (text::paragraph const *const para = paragraph_for(content_width())) {
-      text::text_hit const hit = para->hit_test(local);
+    if (text::text_layout *const layout = layout_for(content_width())) {
+      text::text_hit const hit = layout->hit_test(local);
       caret_ = snap(from_display(hit.offset));
       affinity_ = hit.affinity;
     } else {
@@ -693,8 +773,9 @@ auto text_field::on_measure(constraints const &limits) const -> basalt::size {
   }
   float const width = limits.bounded_width() ? limits.max.width : resolve(preferred_width_);
   float text_height = line;
-  if (text::paragraph const *const p = paragraph_for(std::max(0.0f, width - pad.horizontal()))) {
-    text_height = std::max(text_height, p->extent().height);
+  if (text::text_layout *const layout = layout_for(std::max(0.0f, width - pad.horizontal()))) {
+    (void)layout->layout_range(0, whole_document);
+    text_height = std::max(text_height, layout->total_height());
   }
   float const minimum = framed_ ? resolve(sizes.dimension_height_text_area_min) : 0;
   return {width, std::max(text_height + pad.vertical(), minimum)};
@@ -717,26 +798,32 @@ auto text_field::on_paint(render_context &context) const -> void {
   insets const pad = padding();
   auto const clip = context.clip(inset(area, pad));
   point const origin = content_origin();
-  text::paragraph const *const p = paragraph_for(content_width());
+  text::text_layout *const layout = layout_for(content_width());
+  if (layout != nullptr) {
+    (void)layout->layout_range(0, whole_document);
+  }
 
-  if (p != nullptr && has_selection() && preedit_.empty()) {
-    for (rect const &r : p->selection_rects(selection_begin(), selection_end())) {
+  if (layout != nullptr && has_selection() && preedit_.empty()) {
+    for (rect const &r : layout->selection_rects(selection_begin(), selection_end())) {
       context.fill_rect(translated(r, origin), t.colors.background_accent_subdued_active);
     }
   }
   if (text_.empty() && preedit_.empty()) {
     placeholder_.draw(context, *this, origin, t.colors.text_subdued);
   }
-  if (p != nullptr) {
-    for (auto const &line : p->lines()) {
-      for (auto const &placed : line.runs) {
-        context.draw_glyph_run({origin.x + placed.x, origin.y + line.y + line.baseline}, placed.run,
-                               t.colors.text_default);
+  if (layout != nullptr) {
+    for (std::size_t block = 0; block < layout->block_count(); ++block) {
+      float const top = origin.y + layout->block_top(block);
+      for (auto const &line : layout->paragraph_of(block)->lines()) {
+        for (auto const &placed : line.runs) {
+          context.draw_glyph_run({origin.x + placed.x, top + line.y + line.baseline}, placed.run,
+                                 t.colors.text_default);
+        }
       }
     }
     if (!preedit_.empty()) {
       float const width = device_stroke_width(fixed(1), scale());
-      for (rect const &r : p->selection_rects(caret_, caret_ + preedit_.size())) {
+      for (rect const &r : layout->selection_rects(caret_, caret_ + preedit_.size())) {
         rect const shown = translated(r, origin);
         context.line({shown.left(), shown.bottom() - width},
                      {shown.right(), shown.bottom() - width}, t.colors.text_default, width);

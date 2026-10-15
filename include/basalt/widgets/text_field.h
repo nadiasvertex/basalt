@@ -2,7 +2,7 @@
 
 #include "basalt/accessibility/node.h"
 #include "basalt/layout.h"
-#include "basalt/text/paragraph.h"
+#include "basalt/text/text_layout.h"
 #include "basalt/widget.h"
 #include "basalt/widgets/text_line.h"
 
@@ -116,14 +116,15 @@ protected:
   auto on_accessibility_action(accessibility::action_request const &request) -> bool override;
 
 private:
+  // The laid-out document, rebuilt when the shaper changes. It holds the text with the preedit
+  // inserted at the caret, so `applied_preedit` records what it currently contains.
   struct cache {
     text::text_shaper const *shaper = nullptr;
     text_style style;
-    float width = 0;
-    // The caret offset the preedit was inserted at, or `npos` without a preedit.
-    std::size_t preedit_at = std::string::npos;
-    std::shared_ptr<text::paragraph const> laid_out;
-    bool valid = false;
+    bool wrap = false;
+    std::unique_ptr<text::text_layout> layout;
+    std::string applied_preedit;
+    std::size_t applied_at = 0;
   };
 
   enum class unit_of_move : std::uint8_t { grapheme, word, line, document };
@@ -134,7 +135,14 @@ private:
   [[nodiscard]] auto display_text() const -> std::string;
   [[nodiscard]] auto display_caret() const -> std::size_t;
   [[nodiscard]] auto from_display(std::size_t offset) const -> std::size_t;
-  [[nodiscard]] auto paragraph_for(float width) const -> text::paragraph const *;
+  // The layout at `width`, brought in step with the preedit, role and multiline flag. Null
+  // without a shaper.
+  [[nodiscard]] auto layout_for(float width) const -> text::text_layout *;
+  auto sync_preedit() const -> void;
+  auto remove_applied_preedit() const -> void;
+  // Mirrors an edit of `text_` into the layout. Call it before `text_` changes.
+  auto edit_layout(std::size_t begin, std::size_t end, std::string_view replacement) -> void;
+  auto move_to_line_edge(bool forward, bool extend) -> bool;
   [[nodiscard]] auto line_height() const -> float;
   [[nodiscard]] auto content_origin() const -> point;
   [[nodiscard]] auto boundaries() const -> std::vector<std::size_t> const &;
@@ -173,7 +181,6 @@ private:
   text_clipboard clipboard_;
   std::function<void(std::string const &)> on_change_;
   std::function<void(std::string const &)> on_submit_;
-  // Cleared wherever the text, preedit, role or multiline flag changes.
   mutable cache cache_;
   mutable std::vector<std::size_t> boundaries_;
   mutable bool boundaries_valid_ = false;

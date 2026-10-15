@@ -317,3 +317,72 @@ TEST_CASE("shaped text follows edits, composition, role and multiline changes", 
   REQUIRE(f.field->caret_rect().top() < second_line);
   f.f.tree.set_text_shaper(nullptr);
 }
+
+TEST_CASE("up from a block enters the last line of a wrapped block above", "[text_field]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  std::string const first = "one two three four five six seven eight nine ten";
+  fixture f(first + "\nxx", true, {120, 600});
+  f.f.tree.set_text_shaper(&shaper);
+  f.f.layout();
+  float const first_line_top = [&] {
+    f.field->set_selection(0, 0);
+    return f.field->caret_rect().top();
+  }();
+
+  f.field->set_selection(first.size() + 2, first.size() + 2);
+  float const below = f.field->caret_rect().top();
+  f.f.tap(key::up);
+  std::size_t const landed = f.field->selection().focus;
+  REQUIRE(landed <= first.size());
+  REQUIRE(landed > first.size() / 2);
+  float const last_line_top = f.field->caret_rect().top();
+  REQUIRE(last_line_top > first_line_top);
+  REQUIRE(last_line_top < below);
+
+  f.f.tap(key::down);
+  REQUIRE(f.field->selection().focus > first.size());
+  f.f.tree.set_text_shaper(nullptr);
+}
+
+TEST_CASE("edits in one block move the blocks below and keep the caret in step", "[text_field]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  fixture f("a\nb", true);
+  f.f.tree.set_text_shaper(&shaper);
+  f.f.layout();
+  f.field->set_selection(3, 3);
+  float const second_line = f.field->caret_rect().top();
+
+  f.field->set_selection(1, 1);
+  f.f.tap(key::enter);
+  f.f.type("c");
+  REQUIRE(f.field->text() == "a\nc\nb");
+  f.field->set_selection(5, 5);
+  REQUIRE(f.field->caret_rect().top() > second_line);
+
+  f.f.tap(key::enter);
+  REQUIRE(f.field->text() == "a\nc\nb\n");
+  float const trailing = f.field->caret_rect().top();
+  f.field->set_selection(5, 5);
+  REQUIRE(trailing > f.field->caret_rect().top());
+  f.f.tree.set_text_shaper(nullptr);
+}
+
+TEST_CASE("composition in a later block shifts only that line", "[text_field]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  fixture f("a\nbb", true);
+  f.f.tree.set_text_shaper(&shaper);
+  f.f.layout();
+  f.field->set_selection(4, 4);
+  float const plain = f.field->caret_rect().left();
+  float const top = f.field->caret_rect().top();
+
+  f.f.send(ime_event{.text = "wwww"});
+  REQUIRE(f.field->caret_rect().left() > plain);
+  REQUIRE(f.field->caret_rect().top() == top);
+  f.f.type("w");
+  REQUIRE(f.field->text() == "a\nbbw");
+  f.f.tree.set_text_shaper(nullptr);
+}

@@ -8,6 +8,7 @@
 #include <catch2/catch_test_macros.hpp>
 
 #include "basalt/paint.h"
+#include "basalt/text/text_layout.h"
 #include "basalt/widget_painter.h"
 #include "basalt/widgets/box.h"
 #include "basalt/widgets/label.h"
@@ -147,4 +148,39 @@ TEST_CASE("text_field", "[benchmark]") {
     s.f.tap(key::backspace);
     return field.caret_rect().left();
   };
+}
+
+// The same document and edit as the text_field benchmark, on text_layout, which lays out only the
+// blocks an edit touches. It gives the cost to compare when deciding whether text_field should use
+// it. `block_count` lines of `words` words each; the field above has 40 blocks of 40 words.
+namespace {
+
+auto layout_edit_benchmarks(std::size_t blocks, std::size_t words) -> void {
+  scene s({400, 4000});
+  std::string text;
+  for (std::size_t line = 0; line < blocks; ++line) {
+    text += sentence(words) + '\n';
+  }
+  basalt::theme const theme;
+  text::text_layout_options options;
+  options.paragraph.shape.style = to_layout(text_style_for(theme, text_role::body), {});
+  options.paragraph.wrap = true;
+  text::text_layout document{s.shaper, text, options};
+  document.set_width(368);
+  (void)document.layout_range(0, 1e9f);
+
+  BENCHMARK("type a character and delete it, then caret and visible blocks") {
+    document.replace(100, 100, "x");
+    document.replace(100, 101, "");
+    (void)document.layout_range(0, 4000);
+    return document.caret_rect(100).left();
+  };
+}
+
+} // namespace
+
+TEST_CASE("text_layout", "[benchmark]") {
+  require_optimized_build();
+  SECTION("40 blocks of 40 words") { layout_edit_benchmarks(40, 40); }
+  SECTION("1 block of 1600 words") { layout_edit_benchmarks(1, 1600); }
 }
