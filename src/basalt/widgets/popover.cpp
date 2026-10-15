@@ -33,7 +33,8 @@ protected:
     basalt::theme const fallback;
     theme const &t = tree() != nullptr ? tree()->theme() : fallback;
     float const min_width = resolve(t.sizes.dimension_width_popover_min);
-    float const max_width = std::min(resolve(t.sizes.dimension_width_popover_max), limits.max.width);
+    float const max_width =
+        std::min(resolve(t.sizes.dimension_width_popover_max), limits.max.width);
     insets const pad = padding(t);
     basalt::size const inner = child(0).measure(
         constraints::loose({std::max(0.0f, max_width - pad.horizontal()), unbounded}));
@@ -46,10 +47,10 @@ protected:
     theme const &t = tree() != nullptr ? tree()->theme() : fallback;
     insets const pad = padding(t);
     float const top = pad.top + (tip_ && below_ ? tip_height(t) : 0);
-    child(0).set_bounds({{pad.left, top},
-                         {std::max(0.0f, bounds().width() - pad.horizontal()),
-                          std::max(0.0f, bounds().height() - pad.vertical() -
-                                             (tip_ ? tip_height(t) : 0))}});
+    child(0).set_bounds(
+        {{pad.left, top},
+         {std::max(0.0f, bounds().width() - pad.horizontal()),
+          std::max(0.0f, bounds().height() - pad.vertical() - (tip_ ? tip_height(t) : 0))}});
   }
 
   auto on_paint(render_context &context) const -> void override {
