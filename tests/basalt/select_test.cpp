@@ -23,7 +23,7 @@ struct fixture {
     host = &f.tree.emplace_root<overlay_host>();
     auto &content = host->set_content(std::make_unique<box>(axis::vertical));
     content.set_cross_alignment(alignment::start);
-    field = &content.emplace_child<select>("Fruit");
+    field = &content.emplace_child<basalt::select>("Fruit");
     field->set_mode(mode);
     field->set_placeholder("Pick one");
     field->add_option("Apple");
@@ -67,7 +67,7 @@ struct fixture {
 
   ui f;
   overlay_host *host = nullptr;
-  select *field = nullptr;
+  basalt::select *field = nullptr;
   int changes = 0;
 };
 
