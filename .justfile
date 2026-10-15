@@ -49,7 +49,7 @@ consumer: (install ".build/prefix")
 
 [doc('Build and run the SDL and Skia example. The first build compiles Skia.')]
 [group('build')]
-example:
+demo-sdl-skia:
     cmake -S examples/sdl_skia -B .build/example -G Ninja -DCMAKE_BUILD_TYPE=Release
     cmake --build .build/example
     .build/example/basalt_sdl_skia

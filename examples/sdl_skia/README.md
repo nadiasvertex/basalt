@@ -8,7 +8,7 @@ screen.
 ## Build and run
 
 ```sh
-just example
+just demo-sdl-skia
 ```
 
 The recipe configures `examples/sdl_skia` into `.build/example` with Ninja, builds it in release

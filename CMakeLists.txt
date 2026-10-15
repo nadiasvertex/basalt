@@ -2,7 +2,6 @@ cmake_minimum_required(VERSION 3.25)
 project(basalt VERSION 0.1.0 DESCRIPTION "C++ widget library following the Cubit design system"
   LANGUAGES CXX)
 
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 
 option(BASALT_BUILD_TESTS "Build the Catch2 test suite" ${PROJECT_IS_TOP_LEVEL})
 option(BASALT_BUILD_TOOLS "Build the token generator" ${PROJECT_IS_TOP_LEVEL})
@@ -23,8 +22,8 @@ if(PROJECT_IS_TOP_LEVEL)
 endif()
 
 include(GNUInstallDirs)
-include(compiler_options)
-include(dependencies)
+include("${PROJECT_SOURCE_DIR}/cmake/compiler_options.cmake")
+include("${PROJECT_SOURCE_DIR}/cmake/dependencies.cmake")
 
 add_subdirectory(src)
 
@@ -38,5 +37,5 @@ if(BASALT_BUILD_TESTS)
 endif()
 
 if(BASALT_INSTALL)
-  include(install)
+  include("${PROJECT_SOURCE_DIR}/cmake/install.cmake")
 endif()

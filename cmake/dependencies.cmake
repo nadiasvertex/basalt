@@ -1,6 +1,6 @@
 # Third-party dependencies: HarfBuzz for shaping, and Catch2 for the tests.
 include(FetchContent)
-include(dependency_pins)
+include("${CMAKE_CURRENT_LIST_DIR}/dependency_pins.cmake")
 
 if(BASALT_HARFBUZZ STREQUAL "bundled")
   # Only the sources are needed: src/harfbuzz.cc is HarfBuzz's single-file build, compiled into
