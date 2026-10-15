@@ -33,13 +33,14 @@ set `CMAKE_PREFIX_PATH` to the install prefix.
 
 | File | Contents |
 | ---- | -------- |
-| `main.cpp` | Window, widget tree, event loop and frame schedule. |
-| `sdl_events.cpp` | Translation of SDL input events to `basalt::event`. |
-| `skia_painter.cpp` | Replay of `basalt::paint_commands` into a Skia raster surface. |
-| `cmake/skia.cmake` | Builds Skia with GN and Ninja and exposes it as `skia::skia`. |
+| `main.cpp` | Window, event loop and frame schedule. |
+| `skia_painter.cpp` | A Skia raster surface that the paint commands are replayed into. |
+| `../common/demo_ui.cpp` | The widget tree of the demo, shared with `sdl_skia_gpu`. |
+| `../common/sdl_events.cpp` | Translation of SDL input events to `basalt::event`. |
+| `../common/skia_replay.cpp` | Replay of `basalt::paint_commands` onto a Skia canvas. |
+| `../cmake/skia.cmake` | Builds Skia with GN and Ninja and exposes it as `skia::skia`. |
 
 ## Limits
 
 The example repaints the whole window whenever anything is damaged and presents through SDL's
-window surface. An application that needs partial updates or GPU rendering would use the damage
-rects from `widget_tree::take_damage()` and a Skia GPU backend.
+window surface. `../sdl_skia_gpu` shows partial repaints and a GPU backend.

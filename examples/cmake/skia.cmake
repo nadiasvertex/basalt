@@ -2,12 +2,26 @@
 # configure time, asks GN for the libraries, frameworks and defines a consumer needs, and builds
 # them with Ninja from one custom command. The result is the imported target skia::skia.
 #
-# The example renders on the CPU, so the GPU backends, codecs, PDF, SVG and Skia's own shaper are
-# all disabled. Basalt shapes text with HarfBuzz and hands Skia glyph ids.
+# Codecs, PDF, SVG and Skia's own shaper are disabled. Basalt shapes text with HarfBuzz and hands
+# Skia glyph ids.
+#
+# EXAMPLE_SKIA_GPU, set before including this file, picks the build:
+#   OFF (default)  CPU raster only.
+#   ON             Adds the Ganesh GPU backend of the platform: Metal on macOS, OpenGL on Linux
+#                  and Windows. The CPU raster backend stays available as the fallback.
+# The two builds use different output directories, so both can exist in one build tree.
 include_guard(GLOBAL)
 
 include(example_pins)
 find_package(SkiaTools REQUIRED)
+
+if(APPLE)
+  set(EXAMPLE_SKIA_USE_METAL true)
+  set(EXAMPLE_SKIA_USE_GL false)
+else()
+  set(EXAMPLE_SKIA_USE_METAL false)
+  set(EXAMPLE_SKIA_USE_GL true)
+endif()
 
 get_property(_skia_multi_config GLOBAL PROPERTY GENERATOR_IS_MULTI_CONFIG)
 if(_skia_multi_config)
@@ -31,6 +45,9 @@ if(APPLE OR WIN32)
   set(_skia_externals "")
 else()
   set(_skia_externals freetype libpng zlib)
+endif()
+if(NOT DEFINED EXAMPLE_SKIA_GPU)
+  set(EXAMPLE_SKIA_GPU OFF)
 endif()
 
 set(_skia_sync_stamp "${CMAKE_BINARY_DIR}/skia/sync.stamp")
@@ -70,12 +87,15 @@ else()
   set(_skia_config release)
   set(_skia_args "is_official_build=true" "is_debug=false")
 endif()
-set(_skia_out "${CMAKE_BINARY_DIR}/skia/${_skia_config}")
+set(_skia_flavor "${_skia_config}")
+if(EXAMPLE_SKIA_GPU)
+  string(APPEND _skia_flavor "-gpu")
+endif()
+set(_skia_out "${CMAKE_BINARY_DIR}/skia/${_skia_flavor}")
 
 list(APPEND _skia_args
   "is_component_build=false"
   "skia_enable_android_utils=false"
-  "skia_enable_gpu=false"
   "skia_enable_gpu_debug_layers=false"
   "skia_enable_spirv_validation=false"
   "skia_enable_pdf=false"
@@ -102,10 +122,16 @@ list(APPEND _skia_args
   "skia_use_piex=false"
   "skia_use_wuffs=false"
   "skia_use_xps=false"
-  "skia_use_gl=false"
-  "skia_use_metal=false"
   "skia_use_direct3d=false"
   "skia_use_vulkan=false")
+
+if(EXAMPLE_SKIA_GPU)
+  list(APPEND _skia_args "skia_enable_gpu=true"
+    "skia_use_metal=${EXAMPLE_SKIA_USE_METAL}"
+    "skia_use_gl=${EXAMPLE_SKIA_USE_GL}")
+else()
+  list(APPEND _skia_args "skia_enable_gpu=false" "skia_use_metal=false" "skia_use_gl=false")
+endif()
 
 # SkWriteBuffer otherwise needs the disabled PNG encoder.
 set(_skia_cflags "-DSK_DISABLE_LEGACY_PNG_WRITEBUFFER")

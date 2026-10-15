@@ -16,7 +16,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../cmake")
 
 set(BASALT_CONSUME "subdirectory" CACHE STRING "How to consume Basalt: subdirectory or package")
 set(BASALT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." CACHE PATH "Basalt checkout")
@@ -36,8 +36,11 @@ include(example_dependencies)
 
 add_executable(basalt_sdl_skia
   main.cpp
-  sdl_events.cpp
-  skia_painter.cpp)
+  skia_painter.cpp
+  ../common/demo_ui.cpp
+  ../common/sdl_events.cpp
+  ../common/skia_replay.cpp)
+target_include_directories(basalt_sdl_skia PRIVATE ../common)
 target_link_libraries(basalt_sdl_skia PRIVATE basalt::basalt SDL3::SDL3 skia::skia)
 target_compile_definitions(basalt_sdl_skia PRIVATE
   BASALT_EXAMPLE_FONT_DIR="${BASALT_FONT_DIR}")
