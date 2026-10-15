@@ -30,6 +30,7 @@ add_library(basalt STATIC
   basalt/widgets/choice_control.cpp
   basalt/widgets/dialog.cpp
   basalt/widgets/diagnostics_list.cpp
+  basalt/widgets/field_text.cpp
   basalt/widgets/image_view.cpp
   basalt/widgets/label.cpp
   basalt/widgets/menu.cpp

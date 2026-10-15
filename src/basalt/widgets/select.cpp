@@ -20,7 +20,6 @@ namespace a11y = accessibility;
 
 namespace {
 
-constexpr text_role helper_role = text_role::small;
 // The list scrolls beyond this many rows.
 constexpr std::size_t visible_rows = 8;
 
@@ -82,9 +81,7 @@ struct select::layout_parts {
   float field_top = 0;
 };
 
-select::select(std::string label, control_size size)
-    : label_(std::move(label), label_role_for(size)), helper_({}, helper_role),
-      placeholder_({}, label_role_for(size)), size_(size) {
+select::select(std::string label, control_size size) : field_(std::move(label), size) {
   set_focus_policy(focus_policy::strong);
 }
 
@@ -93,9 +90,9 @@ select::~select() = default;
 auto select::parts() const -> layout_parts {
   basalt::theme const &t = theme();
   layout_parts p;
-  p.label = label_.text().empty() ? basalt::size{} : label_.measure(*this);
-  p.helper = helper_.text().empty() ? basalt::size{} : helper_.measure(*this);
-  text_line shown{value_text(), label_role_for(size_)};
+  p.label = field_.label().text().empty() ? basalt::size{} : field_.label().measure(*this);
+  p.helper = field_.helper().text().empty() ? basalt::size{} : field_.helper().measure(*this);
+  text_line shown{value_text(), label_role_for(field_.size())};
   p.value = shown.measure(*this);
   p.inset = resolve(t.sizes.inset_horizontal_input);
   p.mark = resolve(t.sizes.dimension_icon);
@@ -113,7 +110,7 @@ auto select::parts() const -> layout_parts {
 auto select::value_text() const -> std::string {
   auto const chosen = chosen_indices();
   if (chosen.empty()) {
-    return placeholder_.text();
+    return field_.placeholder().text();
   }
   if (mode_ == select_mode::multiple) {
     return std::to_string(chosen.size()) + " selected";
@@ -122,38 +119,33 @@ auto select::value_text() const -> std::string {
 }
 
 auto select::set_label(std::string label) -> void {
-  if (label_.set_text(std::move(label))) {
+  if (field_.set_label(std::move(label))) {
     invalidate_content();
   }
 }
 
 auto select::set_helper_text(std::string text) -> void {
-  if (helper_.set_text(std::move(text))) {
+  if (field_.set_helper(std::move(text))) {
     invalidate_content();
   }
 }
 
 auto select::set_placeholder(std::string text) -> void {
-  if (placeholder_.set_text(std::move(text))) {
+  if (field_.set_placeholder(std::move(text))) {
     invalidate_content();
   }
 }
 
 auto select::set_error(bool error) -> void {
-  if (error != error_) {
-    error_ = error;
+  if (field_.set_error(error)) {
     invalidate_paint();
   }
 }
 
 auto select::set_size(control_size size) -> void {
-  if (size == size_) {
-    return;
+  if (field_.set_size(size)) {
+    invalidate_content();
   }
-  size_ = size;
-  label_.set_role(label_role_for(size));
-  placeholder_.set_role(label_role_for(size));
-  invalidate_content();
 }
 
 auto select::set_mode(select_mode mode) -> void {
@@ -239,7 +231,8 @@ auto select::open() -> bool {
     std::ranges::stable_partition(order, [this](std::size_t i) { return chosen_[i]; });
   }
 
-  auto list = std::make_unique<menu>(label_.text().empty() ? placeholder_.text() : label_.text());
+  auto list = std::make_unique<menu>(field_.label().text().empty() ? field_.placeholder().text()
+                                                                   : field_.label().text());
   for (std::size_t index : order) {
     list->add_item(std::to_string(index), options_[index], {}, chosen_[index]);
   }
@@ -304,10 +297,10 @@ auto select::on_detached() -> void {
 auto select::accessibility_info() const -> a11y::info {
   a11y::info details;
   details.kind = a11y::role::combo_box;
-  details.name = label_.text();
-  details.description = helper_.text();
+  details.name = field_.label().text();
+  details.description = field_.helper().text();
   details.value = value_text();
-  details.invalid = error_;
+  details.invalid = field_.has_error();
   details.expanded = is_open();
   details.actions = {a11y::action::press, a11y::action::focus};
   return details;
@@ -380,7 +373,7 @@ auto select::on_paint(render_context &context) const -> void {
   layout_parts const p = parts();
   float const width = bounds().width();
   if (p.label.height > 0) {
-    label_.draw(context, *this, {0, 0}, t.colors.text_default);
+    field_.label().draw(context, *this, {0, 0}, t.colors.text_default);
   }
 
   rect const field{{0, p.field_top}, {width, p.field_height}};
@@ -391,7 +384,7 @@ auto select::on_paint(render_context &context) const -> void {
                             state == control_state::hovered
                                 ? t.colors.background_accent_transparent_hover
                                 : t.colors.background_default);
-  rgba const border = error_                       ? t.colors.border_danger
+  rgba const border = field_.has_error()           ? t.colors.border_danger
                       : (has_focus() || is_open()) ? t.colors.border_accent
                                                    : t.colors.border_default;
   context.stroke_rounded_rect(inset(field, insets::uniform(stroke / 2)), radius, border, stroke);
@@ -404,7 +397,7 @@ auto select::on_paint(render_context &context) const -> void {
   bool const showing_value = !chosen_indices().empty();
   rect const text_area{{p.inset, field.top()},
                        {std::max(0.0f, text_right - p.inset), field.height()}};
-  text_line shown{value_text(), label_role_for(size_)};
+  text_line shown{value_text(), label_role_for(field_.size())};
   auto const clip = context.clip(text_area);
   shown.draw_in(context, *this, text_area,
                 showing_value ? t.colors.text_default : t.colors.text_subdued);
@@ -419,8 +412,8 @@ auto select::on_paint(render_context &context) const -> void {
                        t.colors.icon_default, mark_width);
 
   if (p.helper.height > 0) {
-    helper_.draw(context, *this, {0, field.bottom() + p.helper_gap},
-                 error_ ? t.colors.text_danger : t.colors.text_subdued);
+    field_.helper().draw(context, *this, {0, field.bottom() + p.helper_gap},
+                         field_.has_error() ? t.colors.text_danger : t.colors.text_subdued);
   }
 }
 

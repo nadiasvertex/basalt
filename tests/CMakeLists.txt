@@ -27,6 +27,7 @@ add_executable(basalt_tests
   basalt/checkbox_test.cpp
   basalt/chip_test.cpp
   basalt/radio_button_test.cpp
+  basalt/field_text_test.cpp
   basalt/select_test.cpp
   basalt/menu_test.cpp
   basalt/tabs_test.cpp

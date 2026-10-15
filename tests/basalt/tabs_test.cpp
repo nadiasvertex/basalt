@@ -69,6 +69,25 @@ TEST_CASE("arrow keys move focus and selection together", "[tabs]") {
   REQUIRE(f.selections == std::vector<std::size_t>{1, 2, 0, 2});
 }
 
+TEST_CASE("Enter and Space select the focused tab but a held key does not", "[tabs]") {
+  fixture f;
+  f.f.tap(key::tab);
+  f.f.tap(key::right);
+  REQUIRE(f.second->has_focus());
+  f.bar->select(0);
+  f.selections.clear();
+
+  f.f.send(key_event{.code = key::enter, .repeat = true});
+  REQUIRE(f.bar->selected_index() == 0);
+  REQUIRE(f.selections.empty());
+
+  f.f.tap(key::enter);
+  REQUIRE(f.bar->selected_index() == 1);
+  f.bar->select(0);
+  f.f.tap(key::space);
+  REQUIRE(f.bar->selected_index() == 1);
+}
+
 TEST_CASE("Tab enters the tab list at the selected tab", "[tabs]") {
   fixture f;
   f.bar->select(1);

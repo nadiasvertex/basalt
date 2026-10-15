@@ -10,6 +10,7 @@
 
 #include "glyphs.h"
 #include "notify.h"
+#include "press_activation.h"
 
 namespace basalt {
 
@@ -112,30 +113,8 @@ auto navigation_item::on_accessibility_action(a11y::action_request const &reques
 }
 
 auto navigation_item::on_event(event_context &, event const &e) -> bool {
-  if (auto const *p = std::get_if<pointer_event>(&e)) {
-    if (p->button != pointer_button::primary) {
-      return false;
-    }
-    if (p->action == pointer_action::down) {
-      return true;
-    }
-    if (p->action == pointer_action::up) {
-      if (interaction().pressed) {
-        activate();
-      }
-      return true;
-    }
-    return false;
-  }
-  if (auto const *k = std::get_if<key_event>(&e)) {
-    if (k->pressed && !k->repeat && k->modifiers == modifier::none &&
-        (k->code == key::enter || k->code == key::space ||
-         (k->code == key::down && !entries_.empty()))) {
-      activate();
-      return true;
-    }
-  }
-  return false;
+  return handle_press_activation(e, interaction(), {.down = !entries_.empty()},
+                                 [this] { activate(); });
 }
 
 auto navigation_item::on_measure(constraints const &) const -> basalt::size {

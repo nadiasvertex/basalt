@@ -2,6 +2,7 @@
 
 #include "basalt/widget.h"
 #include "basalt/widgets/control_size.h"
+#include "basalt/widgets/field_text.h"
 #include "basalt/widgets/text_line.h"
 
 #include <string>
@@ -16,14 +17,14 @@ namespace basalt {
 // what the control reports to assistive technology.
 class choice_control : public widget {
 public:
-  [[nodiscard]] auto label() const -> std::string const & { return label_.text(); }
+  [[nodiscard]] auto label() const -> std::string const & { return field_.label().text(); }
   auto set_label(std::string label) -> void;
-  [[nodiscard]] auto helper_text() const -> std::string const & { return helper_.text(); }
+  [[nodiscard]] auto helper_text() const -> std::string const & { return field_.helper().text(); }
   // Shown below the label. In the error state it holds the error message.
   auto set_helper_text(std::string text) -> void;
-  [[nodiscard]] auto has_error() const -> bool { return error_; }
+  [[nodiscard]] auto has_error() const -> bool { return field_.has_error(); }
   auto set_error(bool error) -> void;
-  [[nodiscard]] auto size() const -> control_size { return size_; }
+  [[nodiscard]] auto size() const -> control_size { return field_.size(); }
   auto set_size(control_size size) -> void;
 
   // Does what a click does. False when the control is disabled.
@@ -58,11 +59,8 @@ private:
   struct metrics;
   [[nodiscard]] auto measure_parts() const -> metrics;
 
-  text_line label_;
-  text_line helper_;
+  field_text field_;
   text_line trailing_;
-  control_size size_;
-  bool error_ = false;
 };
 
 } // namespace basalt

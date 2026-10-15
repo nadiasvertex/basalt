@@ -2,6 +2,7 @@
 
 #include "basalt/widget.h"
 #include "basalt/widgets/control_size.h"
+#include "basalt/widgets/field_text.h"
 #include "basalt/widgets/text_line.h"
 
 #include <cstddef>
@@ -31,16 +32,18 @@ public:
   explicit select(std::string label = {}, control_size size = control_size::medium);
   ~select() override;
 
-  [[nodiscard]] auto label() const -> std::string const & { return label_.text(); }
+  [[nodiscard]] auto label() const -> std::string const & { return field_.label().text(); }
   auto set_label(std::string label) -> void;
-  [[nodiscard]] auto helper_text() const -> std::string const & { return helper_.text(); }
+  [[nodiscard]] auto helper_text() const -> std::string const & { return field_.helper().text(); }
   // In the error state it holds the error message.
   auto set_helper_text(std::string text) -> void;
-  [[nodiscard]] auto placeholder() const -> std::string const & { return placeholder_.text(); }
+  [[nodiscard]] auto placeholder() const -> std::string const & {
+    return field_.placeholder().text();
+  }
   auto set_placeholder(std::string text) -> void;
-  [[nodiscard]] auto has_error() const -> bool { return error_; }
+  [[nodiscard]] auto has_error() const -> bool { return field_.has_error(); }
   auto set_error(bool error) -> void;
-  [[nodiscard]] auto size() const -> control_size { return size_; }
+  [[nodiscard]] auto size() const -> control_size { return field_.size(); }
   auto set_size(control_size size) -> void;
   [[nodiscard]] auto mode() const -> select_mode { return mode_; }
   // Keeps the first chosen option when changing to `single`.
@@ -84,12 +87,8 @@ private:
 
   std::vector<std::string> options_;
   std::vector<bool> chosen_;
-  text_line label_;
-  text_line helper_;
-  text_line placeholder_;
+  field_text field_;
   select_mode mode_ = select_mode::single;
-  control_size size_;
-  bool error_ = false;
   widget_id popup_;
   menu *list_ = nullptr;
   std::function<void()> on_change_;

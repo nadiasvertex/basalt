@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "glyphs.h"
+#include "named_group.h"
 #include "notify.h"
 
 namespace basalt {
@@ -127,11 +128,6 @@ auto checkbox_group::set_all(bool checked) -> void {
   }
 }
 
-auto checkbox_group::accessibility_info() const -> a11y::info {
-  a11y::info details;
-  details.kind = a11y::role::group;
-  details.name = name_;
-  return details;
-}
+auto checkbox_group::accessibility_info() const -> a11y::info { return named_group_info(name_); }
 
 } // namespace basalt

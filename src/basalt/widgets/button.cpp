@@ -8,6 +8,7 @@
 #include <variant>
 
 #include "notify.h"
+#include "press_activation.h"
 
 namespace basalt {
 
@@ -98,29 +99,7 @@ auto button::on_accessibility_action(accessibility::action_request const &reques
 }
 
 auto button::on_event(event_context &, event const &e) -> bool {
-  if (auto const *p = std::get_if<pointer_event>(&e)) {
-    if (p->button != pointer_button::primary) {
-      return false;
-    }
-    if (p->action == pointer_action::down) {
-      return true;
-    }
-    if (p->action == pointer_action::up) {
-      if (interaction().pressed) {
-        press();
-      }
-      return true;
-    }
-    return false;
-  }
-  if (auto const *k = std::get_if<key_event>(&e)) {
-    if (k->pressed && !k->repeat && k->modifiers == modifier::none &&
-        (k->code == key::enter || k->code == key::space)) {
-      press();
-      return true;
-    }
-  }
-  return false;
+  return handle_press_activation(e, interaction(), {}, [this] { press(); });
 }
 
 auto button::on_measure(constraints const &) const -> basalt::size {

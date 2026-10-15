@@ -7,13 +7,9 @@
 #include <utility>
 #include <variant>
 
+#include "press_activation.h"
+
 namespace basalt {
-
-namespace {
-
-constexpr text_role helper_role = text_role::small;
-
-} // namespace
 
 struct choice_control::metrics {
   basalt::size indicator;
@@ -27,8 +23,7 @@ struct choice_control::metrics {
 };
 
 choice_control::choice_control(std::string label, control_size size)
-    : label_(std::move(label), label_role_for(size)), helper_({}, helper_role),
-      trailing_({}, label_role_for(size)), size_(size) {
+    : field_(std::move(label), size), trailing_({}, label_role_for(size)) {
   set_focus_policy(focus_policy::strong);
   set_minimum_target(true);
 }
@@ -37,10 +32,10 @@ auto choice_control::measure_parts() const -> metrics {
   basalt::theme const &t = theme();
   metrics m;
   m.indicator = indicator_size(t);
-  m.label = label_.measure(*this);
+  m.label = field_.label().measure(*this);
   m.trailing = trailing_.text().empty() ? basalt::size{} : trailing_.measure(*this);
-  m.has_helper = !helper_.text().empty();
-  m.helper = m.has_helper ? helper_.measure(*this) : basalt::size{};
+  m.has_helper = !field_.helper().text().empty();
+  m.helper = m.has_helper ? field_.helper().measure(*this) : basalt::size{};
   m.gap = resolve(t.sizes.gap_horizontal_shape_text);
   m.helper_gap = resolve(t.sizes.gap_vertical_field_helper_text);
   m.row_height = std::max({m.indicator.height, m.label.height, m.trailing.height});
@@ -48,13 +43,13 @@ auto choice_control::measure_parts() const -> metrics {
 }
 
 auto choice_control::set_label(std::string label) -> void {
-  if (label_.set_text(std::move(label))) {
+  if (field_.set_label(std::move(label))) {
     invalidate_content();
   }
 }
 
 auto choice_control::set_helper_text(std::string text) -> void {
-  if (helper_.set_text(std::move(text))) {
+  if (field_.set_helper(std::move(text))) {
     invalidate_content();
   }
 }
@@ -66,20 +61,16 @@ auto choice_control::set_trailing_text(std::string text) -> void {
 }
 
 auto choice_control::set_error(bool error) -> void {
-  if (error != error_) {
-    error_ = error;
+  if (field_.set_error(error)) {
     invalidate_paint();
   }
 }
 
 auto choice_control::set_size(control_size size) -> void {
-  if (size == size_) {
-    return;
+  if (field_.set_size(size)) {
+    trailing_.set_role(label_role_for(size));
+    invalidate_content();
   }
-  size_ = size;
-  label_.set_role(label_role_for(size));
-  trailing_.set_role(label_role_for(size));
-  invalidate_content();
 }
 
 auto choice_control::activate() -> bool {
@@ -93,9 +84,9 @@ auto choice_control::activate() -> bool {
 auto choice_control::accessibility_info() const -> accessibility::info {
   accessibility::info details;
   describe(details);
-  details.name = label_.text();
-  details.description = helper_.text();
-  details.invalid = error_;
+  details.name = field_.label().text();
+  details.description = field_.helper().text();
+  details.invalid = field_.has_error();
   details.actions.insert(accessibility::action::focus);
   return details;
 }
@@ -105,29 +96,8 @@ auto choice_control::on_accessibility_action(accessibility::action_request const
 }
 
 auto choice_control::on_event(event_context &, event const &e) -> bool {
-  if (auto const *p = std::get_if<pointer_event>(&e)) {
-    if (p->button != pointer_button::primary) {
-      return false;
-    }
-    if (p->action == pointer_action::down) {
-      return true;
-    }
-    if (p->action == pointer_action::up) {
-      if (interaction().pressed) {
-        activate();
-      }
-      return true;
-    }
-    return false;
-  }
-  if (auto const *k = std::get_if<key_event>(&e)) {
-    if (k->pressed && !k->repeat && k->modifiers == modifier::none &&
-        (k->code == key::space || (k->code == key::enter && activates_on_enter()))) {
-      activate();
-      return true;
-    }
-  }
-  return false;
+  return handle_press_activation(e, interaction(), {.enter = activates_on_enter()},
+                                 [this] { activate(); });
 }
 
 auto choice_control::on_measure(constraints const &) const -> basalt::size {
@@ -158,16 +128,16 @@ auto choice_control::on_paint(render_context &context) const -> void {
 
   float const text_x = m.indicator.width + m.gap;
   rect const label_area{{text_x, 0}, {m.label.width, row}};
-  label_.draw_in(context, *this, label_area, t.colors.text_default, alignment::start,
-                 alignment::center);
+  field_.label().draw_in(context, *this, label_area, t.colors.text_default, alignment::start,
+                         alignment::center);
   if (m.trailing.width > 0) {
     rect const trailing_area{{text_x + m.label.width + m.gap, 0}, {m.trailing.width, row}};
     trailing_.draw_in(context, *this, trailing_area, t.colors.text_subdued, alignment::start,
                       alignment::center);
   }
   if (m.has_helper) {
-    helper_.draw(context, *this, {text_x, row + m.helper_gap},
-                 error_ ? t.colors.text_danger : t.colors.text_subdued);
+    field_.helper().draw(context, *this, {text_x, row + m.helper_gap},
+                         field_.has_error() ? t.colors.text_danger : t.colors.text_subdued);
   }
 }
 

@@ -7,6 +7,8 @@
 #include <utility>
 #include <variant>
 
+#include "named_group.h"
+
 namespace basalt {
 
 namespace a11y = accessibility;
@@ -136,11 +138,6 @@ auto radio_group::choose(radio_button const &button) -> void {
   }
 }
 
-auto radio_group::accessibility_info() const -> a11y::info {
-  a11y::info details;
-  details.kind = a11y::role::group;
-  details.name = name_;
-  return details;
-}
+auto radio_group::accessibility_info() const -> a11y::info { return named_group_info(name_); }
 
 } // namespace basalt
