@@ -6,6 +6,7 @@
 #include "basalt/typography.h"
 
 #include <cstddef>
+#include <functional>
 #include <string_view>
 #include <vector>
 
@@ -38,7 +39,7 @@ struct shape_options {
   std::vector<style_span> spans;
   // The capital of a character, for spans with `capitals`. A capital that takes a different
   // number of UTF-8 bytes than the character is not used.
-  char32_t (*capital)(char32_t) = nullptr;
+  std::function<char32_t(char32_t)> capital;
   bidi_base direction = bidi_base::automatic;
   // BCP 47 tag such as "ja"; empty uses the process default.
   std::string_view language;

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 
 namespace basalt::text::detail {
@@ -53,6 +54,24 @@ inline constexpr auto replacement_character = char32_t{0xFFFD};
     return {replacement_character, 1};
   }
   return {value, length};
+}
+
+inline auto append_utf8(std::string &out, char32_t c) -> void {
+  if (c < 0x80) {
+    out += static_cast<char>(c);
+  } else if (c < 0x800) {
+    out += static_cast<char>(0xC0 | (c >> 6));
+    out += static_cast<char>(0x80 | (c & 0x3F));
+  } else if (c < 0x10000) {
+    out += static_cast<char>(0xE0 | (c >> 12));
+    out += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
+    out += static_cast<char>(0x80 | (c & 0x3F));
+  } else {
+    out += static_cast<char>(0xF0 | (c >> 18));
+    out += static_cast<char>(0x80 | ((c >> 12) & 0x3F));
+    out += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
+    out += static_cast<char>(0x80 | (c & 0x3F));
+  }
 }
 
 } // namespace basalt::text::detail

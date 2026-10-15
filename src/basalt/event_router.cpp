@@ -9,6 +9,8 @@
 #include <variant>
 #include <vector>
 
+#include "ancestor_chain.h"
+
 namespace basalt {
 
 namespace {
@@ -18,6 +20,10 @@ auto distance_squared(point p, rect r) -> float {
   float const dy = std::max({r.top() - p.y, 0.0f, p.y - r.bottom()});
   return dx * dx + dy * dy;
 }
+
+template <class... Ts> struct overloaded : Ts... {
+  using Ts::operator()...;
+};
 
 auto with_position(event const &e, point position) -> event {
   event copy = e;
@@ -31,14 +37,6 @@ auto with_position(event const &e, point position) -> event {
   return copy;
 }
 
-auto chain_of(widget *leaf) -> std::vector<widget_id> {
-  std::vector<widget_id> chain;
-  for (widget *w = leaf; w != nullptr; w = w->parent()) {
-    chain.push_back(w->id());
-  }
-  return chain;
-}
-
 } // namespace
 
 auto event_context::capture_pointer() -> void { router_->capture_pointer(*current_); }
@@ -48,22 +46,14 @@ auto event_context::release_pointer() -> void { router_->release_pointer(); }
 auto event_context::target() const -> widget * { return router_->tree_->find(target_); }
 
 auto event_router::dispatch(event const &e) -> bool {
-  return std::visit(
-      [&](auto const &value) -> bool {
-        using type = std::remove_cvref_t<decltype(value)>;
-        if constexpr (std::is_same_v<type, pointer_event>) {
-          return dispatch_pointer(value);
-        } else if constexpr (std::is_same_v<type, wheel_event>) {
-          return dispatch_wheel(value);
-        } else if constexpr (std::is_same_v<type, file_drop_event>) {
-          return dispatch_drop(value);
-        } else if constexpr (std::is_same_v<type, window_event>) {
-          return dispatch_window(value);
-        } else {
-          return dispatch_focused(e);
-        }
-      },
-      e);
+  return std::visit(overloaded{
+                        [&](pointer_event const &value) { return dispatch_pointer(value); },
+                        [&](wheel_event const &value) { return dispatch_wheel(value); },
+                        [&](file_drop_event const &value) { return dispatch_drop(value); },
+                        [&](window_event const &value) { return dispatch_window(value); },
+                        [&](auto const &) { return dispatch_focused(e); },
+                    },
+                    e);
 }
 
 auto event_router::hit_area(widget const &w) const -> rect {
@@ -170,13 +160,7 @@ auto event_router::release_pointer() -> void {
 }
 
 auto event_router::deliver(widget &target, event const &e, widget const *stop) -> widget_id {
-  std::vector<widget_id> chain;
-  for (widget *w = &target; w != nullptr; w = w->parent()) {
-    chain.push_back(w->id());
-    if (w == stop) {
-      break;
-    }
-  }
+  auto const chain = ancestor_chain(&target, stop);
   std::optional<point> const root_position = event_position(e);
   event_context context{*this, target.id(), root_position};
   // Handlers may change the tree, so each receiver is resolved by id.
@@ -277,23 +261,21 @@ auto event_router::dispatch_drop(file_drop_event const &e) -> bool {
   widget_id const previous = drop_target_;
   drop_target_ = e.action == file_drop_action::drop ? widget_id{} : handler;
   if (previous.valid() && previous != handler) {
-    if (widget *const left = tree_->find(previous);
-        left != nullptr && left->state() == widget_state::attached) {
-      (void)deliver(*left, file_drop_event{.action = file_drop_action::leave,
-                                           .position = e.position,
-                                           .time = e.time});
-    }
+    send_drop_leave(previous, e.position, e.time);
   }
   return handler.valid();
 }
 
 auto event_router::end_drop(event_time time) -> void {
-  widget_id const previous = std::exchange(drop_target_, {});
-  if (widget *const left = tree_->find(previous);
+  send_drop_leave(std::exchange(drop_target_, {}), drop_position_, time);
+}
+
+auto event_router::send_drop_leave(widget_id id, point position, event_time time) -> void {
+  if (widget *const left = tree_->find(id);
       left != nullptr && left->state() == widget_state::attached) {
-    (void)deliver(*left, file_drop_event{.action = file_drop_action::leave,
-                                         .position = drop_position_,
-                                         .time = time});
+    (void)deliver(
+        *left,
+        file_drop_event{.action = file_drop_action::leave, .position = position, .time = time});
   }
 }
 
@@ -378,14 +360,14 @@ auto event_router::update_hover() -> void {
 
 auto event_router::set_hover(widget *leaf) -> void {
   hover_target_ = leaf != nullptr ? leaf->id() : widget_id{};
-  update_chain(hover_chain_, chain_of(leaf), &interaction_state::hovered);
+  update_chain(hover_chain_, ancestor_chain(leaf), &interaction_state::hovered);
 }
 
 // The press shows only while the pointer is over the widget it started on.
 auto event_router::refresh_pressed() -> void {
   widget *const target = tree_->find(press_target_);
   bool const active = target != nullptr && std::ranges::contains(hover_chain_, target->id());
-  update_chain(pressed_chain_, active ? chain_of(target) : std::vector<widget_id>{},
+  update_chain(pressed_chain_, active ? ancestor_chain(target) : std::vector<widget_id>{},
                &interaction_state::pressed);
 }
 

@@ -7,6 +7,8 @@
 #include <span>
 
 #include "font_face_impl.h"
+#include "glyph_clusters.h"
+#include "unicode.h"
 #include "utf8.h"
 
 namespace basalt::text {
@@ -35,33 +37,16 @@ auto is_neutral_script(hb_script_t script) -> bool {
   return script == HB_SCRIPT_COMMON || script == HB_SCRIPT_INHERITED || script == HB_SCRIPT_UNKNOWN;
 }
 
-auto append_utf8(std::string &out, char32_t c) -> void {
-  if (c < 0x80) {
-    out += static_cast<char>(c);
-  } else if (c < 0x800) {
-    out += static_cast<char>(0xC0 | (c >> 6));
-    out += static_cast<char>(0x80 | (c & 0x3F));
-  } else if (c < 0x10000) {
-    out += static_cast<char>(0xE0 | (c >> 12));
-    out += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
-    out += static_cast<char>(0x80 | (c & 0x3F));
-  } else {
-    out += static_cast<char>(0xF0 | (c >> 18));
-    out += static_cast<char>(0x80 | ((c >> 12) & 0x3F));
-    out += static_cast<char>(0x80 | ((c >> 6) & 0x3F));
-    out += static_cast<char>(0x80 | (c & 0x3F));
-  }
-}
-
 // The text with each character replaced by its capital. A character whose capital has another
 // length keeps its own bytes, so offsets in the result are offsets in the text.
-auto capitalized(std::string_view text, char32_t (*capital)(char32_t)) -> std::string {
+auto capitalized(std::string_view text, std::function<char32_t(char32_t)> const &capital)
+    -> std::string {
   std::string out;
   for (auto pos = std::size_t{0}; pos < text.size();) {
     auto const decoded = detail::decode_utf8(text, pos);
     auto mapped = std::string{};
     if (decoded.value != detail::replacement_character) {
-      append_utf8(mapped, capital(decoded.value));
+      detail::append_utf8(mapped, capital(decoded.value));
     }
     if (mapped.empty() || mapped.size() != decoded.length) {
       out.append(text.substr(pos, decoded.length));
@@ -88,10 +73,7 @@ auto scan_scalars(std::string_view text, std::size_t begin, std::size_t end)
     item.script = hb_unicode_script(unicode, decoded.value);
     item.common = is_neutral_script(item.script);
     auto const category = hb_unicode_general_category(unicode, decoded.value);
-    item.attached = category == HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK ||
-                    category == HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK ||
-                    category == HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK ||
-                    category == HB_UNICODE_GENERAL_CATEGORY_FORMAT;
+    item.attached = detail::is_mark(category) || category == HB_UNICODE_GENERAL_CATEGORY_FORMAT;
     scalars.push_back(item);
     pos = item.end;
   }
@@ -348,7 +330,7 @@ auto text_shaper::shape_spans(std::string_view utf8, shape_options const &option
     piece_options.italic = base.italic || part.italic;
     piece_options.style.font_size = base.style.font_size * part.scale;
     auto text = std::string{utf8.substr(part.begin, part.end - part.begin)};
-    if (part.capitals && options.capital != nullptr) {
+    if (part.capitals && options.capital) {
       text = capitalized(text, options.capital);
     }
     auto shaped = shape(text, piece_options);
@@ -358,12 +340,10 @@ auto text_shaper::shape_spans(std::string_view utf8, shape_options const &option
     result.line_gap = std::max(result.line_gap, shaped.line_gap);
     for (auto &placed : shaped.runs) {
       auto run = std::make_shared<glyph_run>(*placed.run);
+      detail::offset_clusters(*run, part.begin);
       for (auto &g : run->glyphs) {
-        g.cluster += static_cast<std::uint32_t>(part.begin);
         g.position.y -= lift;
       }
-      run->text_begin += part.begin;
-      run->text_end += part.begin;
       result.runs.push_back({std::move(run), x + placed.x});
     }
     x += shaped.width;

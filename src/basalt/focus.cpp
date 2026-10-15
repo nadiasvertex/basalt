@@ -9,6 +9,8 @@
 #include <utility>
 #include <vector>
 
+#include "ancestor_chain.h"
+
 namespace basalt {
 
 namespace {
@@ -174,10 +176,7 @@ auto focus_manager::change_focus(widget *next, focus_reason reason) -> void {
 
 auto focus_manager::refresh_flags() -> void {
   widget *const current = focused();
-  std::vector<widget_id> next_chain;
-  for (widget *w = current; w != nullptr; w = w->parent()) {
-    next_chain.push_back(w->id());
-  }
+  auto next_chain = ancestor_chain(current);
   bool const visible = focus_visible();
   // Hooks run from here may change the tree, so widgets are resolved by id.
   for (auto const id : chain_) {
@@ -324,10 +323,7 @@ auto focus_manager::pop_modal(widget &modal) -> bool {
   widget_id const restore = it->restore;
   modals_.erase(it);
   if (was_active) {
-    widget *const target = tree_->find(restore);
-    if (target != nullptr && target->accepts_focus() && !is_blocked(*target)) {
-      change_focus(target, focus_reason::programmatic);
-    }
+    restore_focus_to(restore);
   }
   return true;
 }
@@ -376,6 +372,13 @@ auto focus_manager::fall_back(widget *from) -> void {
   change_focus(nullptr, focus_reason::programmatic);
 }
 
+auto focus_manager::restore_focus_to(widget_id id) -> void {
+  widget *const target = tree_->find(id);
+  if (target != nullptr && target->accepts_focus() && !is_blocked(*target)) {
+    change_focus(target, focus_reason::programmatic);
+  }
+}
+
 auto focus_manager::subtree_detached(widget *former_parent) -> void {
   std::erase_if(group_entries_, [this](auto const &entry) {
     return !tree_->contains(entry.first) || !tree_->contains(entry.second);
@@ -388,10 +391,7 @@ auto focus_manager::subtree_detached(widget *former_parent) -> void {
   }
   std::erase_if(modals_, gone);
   if (restore) {
-    widget *const target = tree_->find(*restore);
-    if (target != nullptr && target->accepts_focus() && !is_blocked(*target)) {
-      change_focus(target, focus_reason::programmatic);
-    }
+    restore_focus_to(*restore);
   }
   if (focused_.valid() && !tree_->contains(focused_)) {
     fall_back(former_parent);

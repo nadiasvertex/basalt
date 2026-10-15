@@ -7,7 +7,10 @@
 #include <algorithm>
 #include <cmath>
 #include <memory>
+#include <span>
 
+#include "glyph_clusters.h"
+#include "unicode.h"
 #include "utf8.h"
 
 namespace basalt::text {
@@ -15,18 +18,13 @@ namespace {
 
 // Slack for float rounding when comparing a measured width to the limit.
 constexpr auto width_epsilon = 0.01F;
-// How far a selected hard line break extends, as a fraction of the font size.
-constexpr auto break_marker_em = 0.25F;
 
 auto is_extender(char32_t c) -> bool {
   if (c == 0x200C || c == 0x200D || (c >= 0x1F3FB && c <= 0x1F3FF) ||
       (c >= 0xE0020 && c <= 0xE007F)) {
     return true;
   }
-  auto const category = hb_unicode_general_category(hb_unicode_funcs_get_default(), c);
-  return category == HB_UNICODE_GENERAL_CATEGORY_NON_SPACING_MARK ||
-         category == HB_UNICODE_GENERAL_CATEGORY_ENCLOSING_MARK ||
-         category == HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK;
+  return detail::is_mark(c);
 }
 
 auto is_regional_indicator(char32_t c) -> bool { return c >= 0x1F1E6 && c <= 0x1F1FF; }
@@ -137,7 +135,8 @@ auto default_grapheme_boundaries(std::string_view utf8) -> std::vector<std::size
 
 paragraph::paragraph(text_shaper const &shaper, std::string_view utf8,
                      paragraph_options const &options)
-    : text_size_(utf8.size()), break_marker_width_(options.shape.style.font_size * break_marker_em),
+    : text_size_(utf8.size()),
+      break_marker_width_(options.shape.style.font_size * detail::break_marker_em),
       line_padding_(std::max(0.0F, options.line_padding)), gaps_(options.gaps) {
   std::ranges::sort(gaps_, {}, &inline_gap::offset);
   if (options.graphemes) {
@@ -177,6 +176,80 @@ auto rebased(shape_options const &options, std::size_t begin, std::size_t end) -
   return result;
 }
 
+// Where the line that starts at `start` ends: the last break opportunity that fits, else the
+// last grapheme that fits, else the first grapheme.
+template <class Fits>
+auto choose_line_end(std::span<std::size_t const> breaks, std::span<std::size_t const> graphemes,
+                     hard_line const &hard, std::size_t start, Fits const &fits) -> std::size_t {
+  auto const first = std::ranges::upper_bound(breaks, start);
+  auto const last = std::ranges::lower_bound(breaks, hard.end);
+  // Candidates are the break opportunities in the line, then the hard end. The search probes at
+  // growing distances, so the rest of a very long hard line is not shaped for every line that is
+  // cut from it.
+  auto const count = last - first;
+  auto const candidate = [&](std::ptrdiff_t i) { return i < count ? first[i] : hard.end; };
+  auto const index =
+      largest_fitting(count + 1, [&](std::ptrdiff_t i) { return fits(start, candidate(i)); });
+  if (index >= 0) {
+    return candidate(index);
+  }
+  // One word is wider than the line: break between graphemes.
+  auto const limit = first != last ? *first : hard.end;
+  auto const from = std::ranges::upper_bound(graphemes, start);
+  auto const to = std::ranges::lower_bound(graphemes, limit);
+  auto const inside =
+      largest_fitting(to - from, [&](std::ptrdiff_t i) { return fits(start, from[i]); });
+  return inside >= 0 ? from[inside] : *from;
+}
+
+// Fills in the vertical metrics of `line` from the shaped text.
+auto apply_line_metrics(paragraph_line &line, shaped_text const &shaped, float line_height,
+                        float line_padding) -> void {
+  line.ascent = shaped.ascent;
+  line.descent = shaped.descent;
+  auto const natural = shaped.ascent + shaped.descent + shaped.line_gap;
+  auto const text_height = line_height > 0 ? line_height : natural;
+  line.height = text_height + line_padding;
+  line.baseline = (text_height - (shaped.ascent + shaped.descent)) / 2 + shaped.ascent;
+}
+
+// The x offset of a line of `content` width in the paragraph width, and `hang` of trailing
+// spaces that sit on the side the paragraph ends on.
+auto alignment_offset(paragraph_options const &options, float content, float hang,
+                      bool right_to_left) -> float {
+  if (!std::isfinite(options.max_width)) {
+    return 0.0F;
+  }
+  auto const towards_start = options.align == text_align::start;
+  auto const towards_end = options.align == text_align::end;
+  auto const left_aligned = (towards_start && !right_to_left) || (towards_end && right_to_left);
+  auto const right_aligned = (towards_start && right_to_left) || (towards_end && !right_to_left);
+  auto left = (options.max_width - content) / 2;
+  if (left_aligned) {
+    left = 0;
+  } else if (right_aligned) {
+    left = options.max_width - content;
+  }
+  return left - (right_to_left ? hang : 0);
+}
+
+// Gaps push everything after them aside, so each glyph moves by the gaps before it in display
+// order. `shift` is the total width of the gaps in the runs so far.
+auto apply_gaps(glyph_run &run, std::span<inline_gap const> gaps, float &shift) -> void {
+  auto const run_shift = shift;
+  auto const rtl = run.right_to_left();
+  for (auto cluster : detail::clusters(run)) {
+    auto const width = gap_at(gaps, cluster.front().cluster);
+    for (auto &g : cluster) {
+      g.position.x += (shift - run_shift) + (rtl ? 0.0F : width);
+    }
+    // The gap is on the side the cluster starts on: left in a left-to-right run.
+    (rtl ? cluster.back() : cluster.front()).advance += width;
+    shift += width;
+  }
+  run.advance += shift - run_shift;
+}
+
 } // namespace
 
 auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf8,
@@ -213,29 +286,7 @@ auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf
 
     auto start = hard.begin;
     do {
-      auto end = hard.end;
-      if (limited) {
-        auto const first = std::ranges::upper_bound(breaks, start);
-        auto const last = std::ranges::lower_bound(breaks, hard.end);
-        // Candidates are the break opportunities in the line, then the hard end. The
-        // search probes at growing distances, so the rest of a very long hard line is
-        // not shaped for every line that is cut from it.
-        auto const count = last - first;
-        auto const candidate = [&](std::ptrdiff_t i) { return i < count ? first[i] : hard.end; };
-        auto const index =
-            largest_fitting(count + 1, [&](std::ptrdiff_t i) { return fits(start, candidate(i)); });
-        if (index >= 0) {
-          end = candidate(index);
-        } else {
-          // One word is wider than the line: break between graphemes.
-          auto const limit = first != last ? *first : hard.end;
-          auto const from = std::ranges::upper_bound(graphemes_, start);
-          auto const to = std::ranges::lower_bound(graphemes_, limit);
-          auto const inside =
-              largest_fitting(to - from, [&](std::ptrdiff_t i) { return fits(start, from[i]); });
-          end = inside >= 0 ? from[inside] : *from;
-        }
-      }
+      auto const end = limited ? choose_line_end(breaks, graphemes_, hard, start, fits) : hard.end;
 
       auto line = paragraph_line{};
       line.begin = start;
@@ -246,12 +297,7 @@ auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf
 
       auto shaped = shaper.shape(utf8.substr(start, end - start), rebased(shape, start, end));
       line.width = shaped.width + gap_total(gaps_, start, end, end == hard.end);
-      line.ascent = shaped.ascent;
-      line.descent = shaped.descent;
-      auto const natural = shaped.ascent + shaped.descent + shaped.line_gap;
-      auto const text_height = shape.style.line_height > 0 ? shape.style.line_height : natural;
-      line.height = text_height + line_padding_;
-      line.baseline = (text_height - (shaped.ascent + shaped.descent)) / 2 + shaped.ascent;
+      apply_line_metrics(line, shaped, shape.style.line_height, line_padding_);
 
       // Spaces that hang past a soft wrap do not count toward alignment. They
       // sit on the side the paragraph ends on.
@@ -267,53 +313,16 @@ auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf
         }
       }
       auto const content = line.width - hang;
-      auto const right_to_left = (level & 1U) != 0;
-      if (std::isfinite(options.max_width)) {
-        auto const towards_start = options.align == text_align::start;
-        auto const towards_end = options.align == text_align::end;
-        auto const left_aligned =
-            (towards_start && !right_to_left) || (towards_end && right_to_left);
-        auto const right_aligned =
-            (towards_start && right_to_left) || (towards_end && !right_to_left);
-        auto left = (options.max_width - content) / 2;
-        if (left_aligned) {
-          left = 0;
-        } else if (right_aligned) {
-          left = options.max_width - content;
-        }
-        line.x = left - (right_to_left ? hang : 0);
-      }
+      line.x = alignment_offset(options, content, hang, (level & 1U) != 0);
 
       line.runs.reserve(shaped.runs.size());
-      // Gaps push everything after them aside, so each glyph moves by the gaps before it in
-      // display order.
       auto shift = 0.0F;
       for (auto const &placed : shaped.runs) {
         auto run = std::make_shared<glyph_run>(*placed.run);
-        for (auto &g : run->glyphs) {
-          g.cluster += static_cast<std::uint32_t>(start);
-        }
-        run->text_begin += start;
-        run->text_end += start;
+        detail::offset_clusters(*run, start);
         auto const run_shift = shift;
         if (!gaps_.empty()) {
-          auto const rtl = run->right_to_left();
-          auto &glyphs = run->glyphs;
-          for (auto i = std::size_t{0}; i < glyphs.size();) {
-            auto j = i;
-            while (j < glyphs.size() && glyphs[j].cluster == glyphs[i].cluster) {
-              ++j;
-            }
-            auto const width = gap_at(gaps_, glyphs[i].cluster);
-            for (auto k = i; k < j; ++k) {
-              glyphs[k].position.x += (shift - run_shift) + (rtl ? 0.0F : width);
-            }
-            // The gap is on the side the cluster starts on: left in a left-to-right run.
-            glyphs[rtl ? j - 1 : i].advance += width;
-            shift += width;
-            i = j;
-          }
-          run->advance += shift - run_shift;
+          apply_gaps(*run, gaps_, shift);
         }
         line.runs.push_back({std::move(run), placed.x + run_shift + line.x});
       }
@@ -345,25 +354,23 @@ auto merge_touching_rects(std::vector<rect> rects) -> std::vector<rect> {
 auto paragraph::append_run_stops(positioned_run const &placed, std::vector<stop> &out) const
     -> void {
   auto const &run = *placed.run;
-  auto const &glyphs = run.glyphs;
   auto const rtl = run.right_to_left();
   auto pen = 0.0F;
-  for (auto i = std::size_t{0}; i < glyphs.size();) {
-    auto j = i;
+  auto previous = run.text_end;
+  auto chunks = detail::clusters(run);
+  for (auto it = chunks.begin(); it != chunks.end(); ++it) {
+    auto const cluster = *it;
     auto width = 0.0F;
-    while (j < glyphs.size() && glyphs[j].cluster == glyphs[i].cluster) {
-      width += glyphs[j].advance;
-      ++j;
+    for (auto const &g : cluster) {
+      width += g.advance;
     }
-    auto const first = static_cast<std::size_t>(glyphs[i].cluster);
+    auto const first = static_cast<std::size_t>(cluster.front().cluster);
     // The gap before the cluster is part of its advance, and the caret stops follow it.
     auto const lead = gap_at(gaps_, first);
-    auto last = run.text_end;
-    if (rtl && i > 0) {
-      last = glyphs[i - 1].cluster;
-    } else if (!rtl && j < glyphs.size()) {
-      last = glyphs[j].cluster;
-    }
+    auto const next = std::next(it);
+    auto const following =
+        next != chunks.end() ? static_cast<std::size_t>((*next).front().cluster) : run.text_end;
+    auto const last = rtl ? previous : following;
     auto const from = std::ranges::lower_bound(graphemes_, first);
     auto const to = std::ranges::lower_bound(graphemes_, last);
     auto const count = to - from;
@@ -373,7 +380,7 @@ auto paragraph::append_run_stops(positioned_run const &placed, std::vector<stop>
       out.push_back({from[k], placed.x + x, true, from[k] > run.text_begin});
     }
     pen += width;
-    i = j;
+    previous = first;
   }
   out.push_back({run.text_end, placed.x + (rtl ? 0.0F : run.advance), false, true});
 }

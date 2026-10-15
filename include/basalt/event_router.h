@@ -115,6 +115,8 @@ private:
   auto dispatch_wheel(wheel_event const &e) -> bool;
   auto dispatch_drop(file_drop_event const &e) -> bool;
   auto end_drop(event_time time) -> void;
+  // Tells the widget `id`, if it is still attached, that a file drag left it.
+  auto send_drop_leave(widget_id id, point position, event_time time) -> void;
   auto dispatch_focused(event const &e) -> bool;
   auto dispatch_window(window_event const &e) -> bool;
   // Delivers `e` from `target` up to the root (or `stop`, inclusive) and

@@ -3,6 +3,8 @@
 #include <algorithm>
 #include <cmath>
 
+#include "glyph_clusters.h"
+
 namespace basalt::text {
 namespace {
 
@@ -10,8 +12,6 @@ namespace {
 // estimating the height of blocks that have not been shaped yet.
 constexpr auto estimated_em_per_character = 0.55F;
 constexpr auto estimated_line_height_em = 1.3F;
-// How far a selected block break extends, as a fraction of the font size.
-constexpr auto break_marker_em = 0.25F;
 
 } // namespace
 
@@ -320,7 +320,7 @@ auto text_layout::selection_rects(std::size_t begin, std::size_t end, float top,
   if (begin >= end) {
     return rects;
   }
-  auto const marker = options_.paragraph.shape.style.font_size * break_marker_em;
+  auto const marker = options_.paragraph.shape.style.font_size * detail::break_marker_em;
   auto const last = block_at_offset(end);
   for (auto index = block_at_offset(begin); index <= last; ++index) {
     auto const block_y = block_top(index);

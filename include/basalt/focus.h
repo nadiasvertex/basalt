@@ -117,6 +117,8 @@ private:
   auto damage_ring(widget const &w) -> void;
   auto remember_in_groups(widget &w) -> void;
   auto fall_back(widget *from) -> void;
+  // Focuses `id` when it is still in the tree, accepts focus and is not blocked.
+  auto restore_focus_to(widget_id id) -> void;
   auto move_among(widget &root, focus_move move, bool wrap, focus_reason reason) -> bool;
   [[nodiscard]] auto traversal_root() const -> widget *;
   [[nodiscard]] auto group_entry(widget &group) const -> widget *;
