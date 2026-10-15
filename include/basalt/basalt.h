@@ -47,6 +47,7 @@
 #include "basalt/widgets/label.h"
 #include "basalt/widgets/menu.h"
 #include "basalt/widgets/menu_bar.h"
+#include "basalt/widgets/navigation_bar.h"
 #include "basalt/widgets/overlay_host.h"
 #include "basalt/widgets/palette.h"
 #include "basalt/widgets/popover.h"

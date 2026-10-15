@@ -38,6 +38,7 @@ add_executable(basalt_tests
   basalt/image_view_test.cpp
   basalt/hover_delay_test.cpp
   basalt/overlay_host_test.cpp
+  basalt/navigation_bar_test.cpp
   basalt/palette_test.cpp
   basalt/popover_test.cpp
   basalt/progress_bar_test.cpp
