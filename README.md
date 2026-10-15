@@ -23,9 +23,10 @@ The library has three layers.
 ## Requirements
 
 Basalt needs CMake 3.25 or later and a C++23 compiler and standard library, including
-`std::expected` and `<print>`. CI builds and tests it with GCC 14 and Clang 18 on Ubuntu 24.04,
-Apple Clang on macOS 26, and MSVC from Visual Studio 2022 on Windows. HarfBuzz and, for the tests,
-Catch2 are downloaded at configure time unless you provide them.
+`std::expected` and `<print>`. CI builds and tests it with GCC 14 and Clang 20 on Ubuntu 24.04,
+Apple Clang on macOS 26, and MSVC from Visual Studio 2022 on Windows. Clang 18 and older cannot use
+libstdc++'s `std::expected`. HarfBuzz and, for the tests, Catch2 are downloaded at configure time
+unless you provide them.
 
 ## Building
 

@@ -5,7 +5,9 @@
 #include <atomic>
 #include <cctype>
 #include <cstdlib>
+#include <memory>
 #include <set>
+#include <string>
 #include <system_error>
 #include <utility>
 
@@ -130,8 +132,19 @@ auto is_font_file(std::filesystem::path const &path) -> bool {
 }
 
 auto environment(char const *name) -> std::filesystem::path {
+#if defined(_WIN32)
+  // The wide variant keeps non-ASCII paths intact, and MSVC deprecates std::getenv.
+  auto const wide_name = std::wstring{name, name + std::char_traits<char>::length(name)};
+  wchar_t *buffer = nullptr;
+  if (_wdupenv_s(&buffer, nullptr, wide_name.c_str()) != 0 || buffer == nullptr) {
+    return {};
+  }
+  auto const value = std::unique_ptr<wchar_t, decltype(&std::free)>{buffer, &std::free};
+  return std::filesystem::path{value.get()};
+#else
   auto const *value = std::getenv(name);
   return value == nullptr ? std::filesystem::path{} : std::filesystem::path{value};
+#endif
 }
 
 } // namespace

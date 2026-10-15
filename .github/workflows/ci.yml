@@ -27,19 +27,24 @@ jobs:
         config: [Debug, Release]
         toolchain:
           - { name: linux-gcc, os: ubuntu-24.04, cxx: g++-14 }
-          - { name: linux-clang, os: ubuntu-24.04, cxx: clang++-18 }
+          - { name: linux-clang, os: ubuntu-24.04, cxx: clang++-20, apt: clang-20 libstdc++-14-dev }
           - { name: macos, os: macos-26, cxx: clang++ }
           - { name: windows, os: windows-2022, cxx: cl }
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
+      # The runner's Clang 18 lacks the concepts level that libstdc++ requires for std::expected.
+      - name: Install compiler
+        if: matrix.toolchain.apt
+        run: sudo apt-get update && sudo apt-get install -y ${{ matrix.toolchain.apt }}
       - name: Configure
         run: >
           cmake -S . -B .build/ci -G Ninja -C .build/sources/init.cmake
           -D CMAKE_BUILD_TYPE=${{ matrix.config }}
           -D CMAKE_CXX_COMPILER=${{ matrix.toolchain.cxx }}
+      # -k 0 keeps going after a failed compile, so that one run reports every error.
       - name: Build
-        run: cmake --build .build/ci --parallel
+        run: cmake --build .build/ci --parallel -- -k 0
       - name: Test
         run: ctest --test-dir .build/ci --output-on-failure --no-tests=error
 
@@ -51,13 +56,15 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - uses: ./.github/actions/setup
-      # Clang 18's AddressSanitizer crashes at startup with the runner's default mmap randomization.
+      - name: Install compiler
+        run: sudo apt-get update && sudo apt-get install -y clang-20 libclang-rt-20-dev libstdc++-14-dev
+      # AddressSanitizer can crash at startup with the runner's high mmap randomization.
       - name: Reduce mmap randomization
         run: sudo sysctl vm.mmap_rnd_bits=28
       - name: Configure
         run: >
           cmake -S . -B .build/ci -G Ninja -C .build/sources/init.cmake
-          -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++-18 -D BASALT_SANITIZE=ON
+          -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++-20 -D BASALT_SANITIZE=ON
       - name: Build
         run: cmake --build .build/ci --parallel
       - name: Test
