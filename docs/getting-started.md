@@ -55,7 +55,8 @@ auto main(int argc, char **argv) -> int {
 ```
 
 `add_file` returns the number of faces that it added. Use `add_system_fonts` to add the fonts of
-the operating system. The `font_manager` must stay alive while the shaper is in use.
+the operating system. The `font_manager` must stay alive while the shaper is in use. Do not shape
+on two threads with the same `font_manager` at the same time.
 
 ## Step 3: Create the widget tree
 

@@ -60,3 +60,8 @@ just tokens <dir>       # regenerate tokens.h from the Cubit DTCG token files
 
 A test that cannot fail is worse than no test. Before trusting a new test, make it fail on purpose
 by breaking the code or the expected value, confirm the failure message, and undo the change.
+
+## Documentation
+
+Write all documentation in ASD-STE100 style. The audience is an experienced c++ programmer new to
+this library.

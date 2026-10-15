@@ -150,6 +150,9 @@ HarfBuzz is a private dependency. No public header includes it.
 The tree holds a pointer to a `text_shaper`. The host must keep the shaper alive for as long as
 the tree uses it. Without a shaper, text measures as zero width.
 
+A `text_shaper` is not thread-safe. Shaping changes the scale of a font that all callers of the same
+`font_manager` share. Use one thread for each `font_manager`.
+
 ## Theme
 
 A `theme` holds the resolved Cubit tokens for one color scheme and one density. Create one with
