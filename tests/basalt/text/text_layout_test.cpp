@@ -448,3 +448,18 @@ TEST_CASE("edits and option changes drop the paragraphs kept for other widths", 
   layout.set_options(options());
   CHECK(layout.kept_width_count() == 0);
 }
+
+TEST_CASE("blocks keep scale from style spans", "[text_layout]") {
+  auto &fonts = require_latin();
+  auto const shaper = text_shaper{fonts};
+  auto opts = options();
+  opts.paragraph.shape.spans.push_back({.begin = 2, .end = 4, .scale = 0.5F, .rise = 0.25F});
+  auto layout = text_layout{shaper, "abcdef", opts};
+  auto const block = layout.paragraph_of(0);
+
+  REQUIRE(block->lines().size() == 1);
+  auto const &runs = block->lines()[0].runs;
+  REQUIRE(runs.size() == 3);
+  CHECK(runs[1].run->size == 20 * 0.5F);
+  CHECK(runs[1].run->glyphs.front().position.y == -0.25F * 20);
+}

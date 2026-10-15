@@ -500,3 +500,46 @@ TEST_CASE("line padding adds room below the text of every line", "[paragraph][ga
   auto const gap_free = padded.gap_rect(0);
   CHECK_FALSE(gap_free);
 }
+
+TEST_CASE("style spans keep scale and rise in a paragraph", "[paragraph]") {
+  auto &fonts = require_latin();
+  auto opts = options();
+  opts.shape.spans.push_back({.begin = 2, .end = 4, .scale = 0.5F, .rise = 0.25F});
+  auto const p = make(fonts, "abcdef", opts);
+
+  REQUIRE(p.lines().size() == 1);
+  auto const &runs = p.lines()[0].runs;
+  REQUIRE(runs.size() == 3);
+  CHECK(runs[1].run->size == opts.shape.style.font_size * 0.5F);
+  CHECK(runs[1].run->glyphs.front().position.y == -0.25F * opts.shape.style.font_size);
+  CHECK(runs[0].run->glyphs.front().position.y == 0);
+}
+
+TEST_CASE("style spans keep scale and rise on a wrapped line", "[paragraph]") {
+  auto &fonts = require_latin();
+  auto opts = options(width_of(fonts, "abcd"));
+  opts.shape.spans.push_back({.begin = 5, .end = 7, .scale = 0.5F});
+  auto const p = make(fonts, "abcd efgh", opts);
+
+  REQUIRE(p.lines().size() == 2);
+  auto small = false;
+  for (auto const &line : p.lines()) {
+    for (auto const &run : line.runs) {
+      small = small || run.run->size == opts.shape.style.font_size * 0.5F;
+    }
+  }
+  CHECK(small);
+}
+
+TEST_CASE("style spans keep capitals in a paragraph", "[paragraph]") {
+  auto &fonts = require_latin();
+  auto opts = options();
+  opts.shape.spans.push_back({.begin = 0, .end = 3, .capitals = true});
+  opts.shape.capital = [](char32_t c) -> char32_t {
+    return c >= 'a' && c <= 'z' ? c - 'a' + 'A' : c;
+  };
+  auto const p = make(fonts, "abc", opts);
+
+  CHECK_THAT(p.extent().width, WithinAbs(width_of(fonts, "ABC"), 0.01));
+  CHECK(p.extent().width != width_of(fonts, "abc"));
+}

@@ -168,7 +168,10 @@ auto rebased(shape_options const &options, std::size_t begin, std::size_t end) -
     auto const from = std::max(span.begin, begin);
     auto const to = std::min(span.end, end);
     if (from < to) {
-      result.spans.push_back({from - begin, to - begin, span.bold, span.italic});
+      auto rebased_span = span;
+      rebased_span.begin = from - begin;
+      rebased_span.end = to - begin;
+      result.spans.push_back(rebased_span);
     }
   }
   return result;
