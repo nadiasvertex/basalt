@@ -85,7 +85,8 @@ TEST_CASE("matching is case-insensitive and picks the nearest weight", "[fonts]"
   }
   auto const &family = families.front();
   auto upper = family;
-  std::ranges::transform(upper, upper.begin(), [](unsigned char c) { return std::toupper(c); });
+  std::ranges::transform(upper, upper.begin(),
+                         [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
 
   auto const regular = fonts.match({family, 400});
   REQUIRE(regular != nullptr);
