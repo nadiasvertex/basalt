@@ -54,7 +54,8 @@ add_library(basalt STATIC
   basalt/widgets/navigation_bar.cpp
   basalt/widgets/popover.cpp
   basalt/widgets/select.cpp
-  basalt/widgets/tooltip.cpp)
+  basalt/widgets/tooltip.cpp
+  basalt/widgets/uploader.cpp)
 add_library(basalt::basalt ALIAS basalt)
 
 target_compile_features(basalt PUBLIC cxx_std_23)

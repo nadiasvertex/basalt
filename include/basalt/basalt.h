@@ -67,3 +67,4 @@
 #include "basalt/widgets/text_line.h"
 #include "basalt/widgets/toggle.h"
 #include "basalt/widgets/tooltip.h"
+#include "basalt/widgets/uploader.h"

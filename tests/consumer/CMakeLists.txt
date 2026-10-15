@@ -11,7 +11,7 @@ set(BASALT_GIT_REPOSITORY "https://github.com/nadiasvertex/basalt.git" CACHE STR
 set(BASALT_GIT_TAG "main" CACHE STRING "Basalt tag or commit")
 
 if(BASALT_CONSUME STREQUAL "package")
-  find_package(basalt 0.1 CONFIG REQUIRED)
+  find_package(basalt 0.2 CONFIG REQUIRED)
 elseif(BASALT_CONSUME STREQUAL "subdirectory")
   add_subdirectory("${BASALT_SOURCE_DIR}" basalt)
 elseif(BASALT_CONSUME STREQUAL "fetch")
