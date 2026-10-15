@@ -21,6 +21,9 @@ add_executable(basalt_tests
   basalt/widget_painter_test.cpp
   basalt/label_test.cpp
   basalt/button_test.cpp
+  basalt/toggle_test.cpp
+  basalt/checkbox_test.cpp
+  basalt/radio_button_test.cpp
   basalt/menu_test.cpp
   basalt/tabs_test.cpp
   basalt/text_field_test.cpp

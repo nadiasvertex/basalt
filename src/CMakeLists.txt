@@ -25,6 +25,8 @@ add_library(basalt STATIC
   basalt/text/text_shaper.cpp
   basalt/widgets/box.cpp
   basalt/widgets/button.cpp
+  basalt/widgets/checkbox.cpp
+  basalt/widgets/choice_control.cpp
   basalt/widgets/dialog.cpp
   basalt/widgets/diagnostics_list.cpp
   basalt/widgets/image_view.cpp
@@ -34,6 +36,7 @@ add_library(basalt STATIC
   basalt/widgets/overlay_host.cpp
   basalt/widgets/palette.cpp
   basalt/widgets/progress_bar.cpp
+  basalt/widgets/radio_button.cpp
   basalt/widgets/scroll_bar.cpp
   basalt/widgets/scroll_view.cpp
   basalt/widgets/separator.cpp
@@ -43,7 +46,8 @@ add_library(basalt STATIC
   basalt/widgets/status_bar.cpp
   basalt/widgets/tabs.cpp
   basalt/widgets/text_field.cpp
-  basalt/widgets/text_line.cpp)
+  basalt/widgets/text_line.cpp
+  basalt/widgets/toggle.cpp)
 add_library(basalt::basalt ALIAS basalt)
 
 target_compile_features(basalt PUBLIC cxx_std_23)

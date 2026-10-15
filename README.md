@@ -16,7 +16,8 @@ The library has three layers.
   multi-paragraph layout.
 - **Widgets:** box, stack, scroll view and scroll bar, split view and splitter, label, button, menu
   and menu bar, tabs, text field, text line, status bar, progress bar, diagnostics list, separator,
-  image view, dialog, palette and overlay host.
+  image view, dialog, palette, overlay host, toggle, checkbox and checkbox group, and radio button
+  and radio group.
 
 `basalt/basalt.h` includes every public header.
 

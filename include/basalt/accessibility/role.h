@@ -26,7 +26,10 @@ enum class role : std::uint8_t {
   link,
   check_box,
   radio_button,
+  // An on/off control that takes effect immediately.
+  switch_control,
   text_field,
+  combo_box,
   slider,
   progress_bar,
   scroll_area,
@@ -43,8 +46,11 @@ enum class role : std::uint8_t {
   tab_panel,
   list,
   list_item,
+  list_box,
   tree,
   tree_item,
+  tooltip,
+  navigation,
 };
 
 [[nodiscard]] auto to_string(role r) -> std::string_view;
@@ -56,7 +62,9 @@ enum class role : std::uint8_t {
   case role::link:
   case role::check_box:
   case role::radio_button:
+  case role::switch_control:
   case role::text_field:
+  case role::combo_box:
   case role::slider:
   case role::splitter:
   case role::menu_item:
@@ -79,7 +87,9 @@ enum class role : std::uint8_t {
   case role::menu:
   case role::tab_list:
   case role::list:
+  case role::list_box:
   case role::tree:
+  case role::navigation:
   case role::scroll_area:
   case role::progress_bar:
     return true;

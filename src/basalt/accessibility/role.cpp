@@ -36,8 +36,12 @@ auto to_string(role r) -> std::string_view {
     return "check_box";
   case role::radio_button:
     return "radio_button";
+  case role::switch_control:
+    return "switch_control";
   case role::text_field:
     return "text_field";
+  case role::combo_box:
+    return "combo_box";
   case role::slider:
     return "slider";
   case role::progress_bar:
@@ -70,10 +74,16 @@ auto to_string(role r) -> std::string_view {
     return "list";
   case role::list_item:
     return "list_item";
+  case role::list_box:
+    return "list_box";
   case role::tree:
     return "tree";
   case role::tree_item:
     return "tree_item";
+  case role::tooltip:
+    return "tooltip";
+  case role::navigation:
+    return "navigation";
   }
   return "unknown";
 }
