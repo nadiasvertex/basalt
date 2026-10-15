@@ -23,13 +23,7 @@ auto options(float width = std::numeric_limits<float>::infinity()) -> paragraph_
   return result;
 }
 
-auto require_latin() -> font_manager & {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A')) {
-    SKIP("no font covers Latin letters");
-  }
-  return fonts;
-}
+auto require_latin() -> font_manager & { return basalt::test::bundled_fonts(); }
 
 auto width_of(font_manager &fonts, std::string_view text) -> float {
   return text_shaper{fonts}.shape(text, options().shape).width;
@@ -201,8 +195,8 @@ TEST_CASE("alignment places the line in the available width", "[paragraph]") {
 }
 
 TEST_CASE("start alignment follows the base direction", "[paragraph]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'א')) {
     SKIP("no font covers Hebrew");
   }
   auto const p = make(fonts, hebrew, options(500));
@@ -373,8 +367,8 @@ TEST_CASE("a selected hard break and empty lines are visible", "[paragraph]") {
 }
 
 TEST_CASE("right-to-left text puts the start of the text on the right", "[paragraph]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'א')) {
     SKIP("no font covers Hebrew");
   }
   auto const p = make(fonts, hebrew, options());
@@ -396,8 +390,8 @@ TEST_CASE("right-to-left text puts the start of the text on the right", "[paragr
 }
 
 TEST_CASE("mixed direction selection covers each run", "[paragraph]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A') || !med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'A') || !basalt::test::has_coverage(fonts, U'א')) {
     SKIP("fonts for Latin and Hebrew are missing");
   }
   auto const text = std::string{"ab "} + hebrew + " cd";

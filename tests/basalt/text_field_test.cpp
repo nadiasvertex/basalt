@@ -6,7 +6,7 @@
 #include <string>
 #include <vector>
 
-#include "../text/font_support.h"
+#include "text/font_support.h"
 #include "ui_fixture.h"
 
 using namespace basalt;
@@ -226,10 +226,7 @@ TEST_CASE("text fields expose text field semantics", "[text_field][accessibility
 }
 
 TEST_CASE("shaped text gives the caret and hit testing real positions", "[text_field]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'a')) {
-    SKIP("no font covers Latin letters");
-  }
+  auto &fonts = basalt::test::bundled_fonts();
   text::text_shaper shaper{fonts};
   fixture f("hello");
   f.f.tree.set_text_shaper(&shaper);
@@ -252,10 +249,7 @@ TEST_CASE("shaped text gives the caret and hit testing real positions", "[text_f
 }
 
 TEST_CASE("up and down keep the column in a multi-line field", "[text_field]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'a')) {
-    SKIP("no font covers Latin letters");
-  }
+  auto &fonts = basalt::test::bundled_fonts();
   text::text_shaper shaper{fonts};
   fixture f("aa\naa\naa", true);
   f.f.tree.set_text_shaper(&shaper);
@@ -275,10 +269,7 @@ TEST_CASE("up and down keep the column in a multi-line field", "[text_field]") {
 }
 
 TEST_CASE("a multi-line field grows as its text wraps", "[text_field]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'a')) {
-    SKIP("no font covers Latin letters");
-  }
+  auto &fonts = basalt::test::bundled_fonts();
   text::text_shaper shaper{fonts};
   fixture f("one two three four five six seven eight nine ten", true, {120, 600});
   f.f.tree.set_text_shaper(&shaper);

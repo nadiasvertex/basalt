@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+set(BASALT_HARFBUZZ "@BASALT_HARFBUZZ@")
+if(BASALT_HARFBUZZ STREQUAL "system")
+  include(CMakeFindDependencyMacro)
+  find_dependency(harfbuzz CONFIG)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/basaltTargets.cmake")
+check_required_components(basalt)

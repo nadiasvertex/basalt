@@ -19,13 +19,7 @@ auto options() -> text_layout_options {
   return result;
 }
 
-auto require_latin() -> font_manager & {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A')) {
-    SKIP("no font covers Latin letters");
-  }
-  return fonts;
-}
+auto require_latin() -> font_manager & { return basalt::test::bundled_fonts(); }
 
 auto numbered_lines(int count) -> std::string {
   auto text = std::string{};

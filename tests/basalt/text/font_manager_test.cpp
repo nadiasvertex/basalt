@@ -41,7 +41,7 @@ TEST_CASE("a missing directory adds nothing", "[fonts]") {
 }
 
 TEST_CASE("system fonts load with names, weights and metrics", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::system_fonts();
   if (fonts.faces().empty()) {
     SKIP("no system fonts");
   }
@@ -64,11 +64,9 @@ TEST_CASE("system fonts load with names, weights and metrics", "[fonts]") {
 }
 
 TEST_CASE("a face with latin coverage reports glyphs and metrics", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::bundled_fonts();
   auto const face = fonts.fallback_for(U'A', {"Noto Sans"});
-  if (face == nullptr) {
-    SKIP("no font covers Latin letters");
-  }
+  REQUIRE(face != nullptr);
   CHECK(face->covers(U'A'));
   CHECK(face->glyph_for(U'A').value_or(0) != 0);
   auto const metrics = face->metrics(100);
@@ -80,7 +78,7 @@ TEST_CASE("a face with latin coverage reports glyphs and metrics", "[fonts]") {
 }
 
 TEST_CASE("matching is case-insensitive and picks the nearest weight", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::system_fonts();
   auto const families = fonts.families();
   if (families.empty()) {
     SKIP("no system fonts");
@@ -101,11 +99,10 @@ TEST_CASE("matching is case-insensitive and picks the nearest weight", "[fonts]"
 }
 
 TEST_CASE("fallback prefers the requested family when it has the glyph", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::bundled_fonts();
   auto const requested = fonts.primary_face({"Noto Sans"});
-  if (requested == nullptr || !requested->covers(U'A')) {
-    SKIP("no usable primary font");
-  }
+  REQUIRE(requested != nullptr);
+  REQUIRE(requested->covers(U'A'));
   auto const request = font_request{requested->family(), requested->weight(), requested->italic()};
   CHECK(fonts.fallback_for(U'A', request)->family() == requested->family());
   // The answer is cached and stable.
@@ -113,7 +110,7 @@ TEST_CASE("fallback prefers the requested family when it has the glyph", "[fonts
 }
 
 TEST_CASE("fallback finds a font for scripts the primary lacks", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::system_fonts();
   auto const primary = fonts.primary_face({"Noto Sans"});
   if (primary == nullptr) {
     SKIP("no system fonts");
@@ -131,11 +128,9 @@ TEST_CASE("fallback finds a font for scripts the primary lacks", "[fonts]") {
 }
 
 TEST_CASE("fallback for a base and a mark covers both", "[fonts]") {
-  auto &fonts = med::test::system_fonts();
+  auto &fonts = basalt::test::bundled_fonts();
   auto const face = fonts.fallback_for(U"e\u0301", {"Noto Sans"});
-  if (face == nullptr) {
-    SKIP("no font covers an accented e");
-  }
+  REQUIRE(face != nullptr);
   CHECK(face->covers(U'e'));
   CHECK(face->covers(U'\u0301'));
 }

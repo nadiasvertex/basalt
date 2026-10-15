@@ -4,7 +4,7 @@
 #include "basalt/widgets/label.h"
 #include "basalt/widgets/separator.h"
 
-#include "../text/font_support.h"
+#include "text/font_support.h"
 #include "ui_fixture.h"
 
 using namespace basalt;
@@ -70,10 +70,7 @@ TEST_CASE("tones map to theme text colors", "[label]") {
 }
 
 TEST_CASE("a shaped label draws its glyphs in the tone color", "[label][paint]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A')) {
-    SKIP("no font covers Latin letters");
-  }
+  auto &fonts = basalt::test::bundled_fonts();
   text::text_shaper shaper{fonts};
   ui f;
   f.tree.set_text_shaper(&shaper);

@@ -1,2 +1,3 @@
 add_executable(basalt_tokens main.cpp)
-target_link_libraries(basalt_tokens PRIVATE med::compiler_options)
+target_compile_features(basalt_tokens PRIVATE cxx_std_23)
+target_link_libraries(basalt_tokens PRIVATE basalt_compiler_options)

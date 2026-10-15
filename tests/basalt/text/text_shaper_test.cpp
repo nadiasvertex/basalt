@@ -20,13 +20,7 @@ auto options(float size = 20) -> shape_options {
   return result;
 }
 
-auto require_latin() -> font_manager & {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A')) {
-    SKIP("no font covers Latin letters");
-  }
-  return fonts;
-}
+auto require_latin() -> font_manager & { return basalt::test::bundled_fonts(); }
 
 auto glyph_count(shaped_text const &shaped) -> std::size_t {
   auto count = std::size_t{0};
@@ -128,8 +122,8 @@ TEST_CASE("invalid utf-8 still produces glyphs", "[shaper]") {
 }
 
 TEST_CASE("each run covers one script and the runs cover the text", "[shaper]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A') || !med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'A') || !basalt::test::has_coverage(fonts, U'א')) {
     SKIP("fonts for Latin and Hebrew are missing");
   }
   auto const text = std::string{"abc "} + hebrew + " def";
@@ -146,8 +140,8 @@ TEST_CASE("each run covers one script and the runs cover the text", "[shaper]") 
 }
 
 TEST_CASE("hebrew runs are right to left with display-ordered glyphs", "[shaper]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'א')) {
     SKIP("no font covers Hebrew");
   }
   auto const shaped = text_shaper{fonts}.shape(hebrew, options());
@@ -163,8 +157,8 @@ TEST_CASE("hebrew runs are right to left with display-ordered glyphs", "[shaper]
 }
 
 TEST_CASE("mixed text places runs in display order", "[shaper]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'A') || !med::test::has_coverage(fonts, U'א')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'A') || !basalt::test::has_coverage(fonts, U'א')) {
     SKIP("fonts for Latin and Hebrew are missing");
   }
   auto const text = std::string{"ab "} + hebrew;
@@ -180,8 +174,8 @@ TEST_CASE("mixed text places runs in display order", "[shaper]") {
 }
 
 TEST_CASE("arabic letters are joined by shaping", "[shaper]") {
-  auto &fonts = med::test::system_fonts();
-  if (!med::test::has_coverage(fonts, U'ا')) {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'ا')) {
     SKIP("no font covers Arabic");
   }
   auto const shaped = text_shaper{fonts}.shape(arabic, options());
