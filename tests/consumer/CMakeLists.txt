@@ -11,7 +11,12 @@ set(BASALT_GIT_REPOSITORY "https://github.com/nadiasvertex/basalt.git" CACHE STR
 set(BASALT_GIT_TAG "main" CACHE STRING "Basalt tag or commit")
 
 if(BASALT_CONSUME STREQUAL "package")
-  find_package(basalt 0.2 CONFIG REQUIRED)
+  file(STRINGS "${BASALT_SOURCE_DIR}/CMakeLists.txt" basalt_project_line
+       REGEX "^project\\(basalt VERSION [0-9]+\\.[0-9]+\\.[0-9]+" LIMIT_COUNT 1)
+  if(NOT basalt_project_line MATCHES "VERSION ([0-9]+\\.[0-9]+)\\.[0-9]+")
+    message(FATAL_ERROR "No project(basalt VERSION X.Y.Z) line in ${BASALT_SOURCE_DIR}/CMakeLists.txt")
+  endif()
+  find_package(basalt ${CMAKE_MATCH_1} CONFIG REQUIRED)
 elseif(BASALT_CONSUME STREQUAL "subdirectory")
   add_subdirectory("${BASALT_SOURCE_DIR}" basalt)
 elseif(BASALT_CONSUME STREQUAL "fetch")
