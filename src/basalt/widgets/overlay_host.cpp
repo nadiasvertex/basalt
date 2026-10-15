@@ -14,9 +14,12 @@ namespace basalt {
 // widget and places that widget.
 class overlay_layer final : public widget {
 public:
-  overlay_layer(overlay_host &host, bool dialog, rect anchor, std::function<void()> on_close)
+  overlay_layer(overlay_host &host, bool dialog, bool hover, rect anchor,
+                std::function<void()> on_close)
       : host_(&host), dialog_(dialog), anchor_(anchor), on_close_(std::move(on_close)) {
     set_focus_policy(focus_policy::none);
+    // A hover popup lets the pointer through to the content beneath it.
+    set_hit_testable(!hover);
   }
 
   auto shown() const -> widget * { return child_count() > 0 ? &child(0) : nullptr; }
@@ -128,13 +131,15 @@ auto overlay_host::on_child_removed(widget &child) -> void {
   }
 }
 
-auto overlay_host::add_layer(std::unique_ptr<widget> shown, bool dialog, rect anchor,
+auto overlay_host::add_layer(std::unique_ptr<widget> shown, bool dialog, bool hover, rect anchor,
                              std::function<void()> on_close) -> widget_id {
-  auto layer = std::make_unique<overlay_layer>(*this, dialog, anchor, std::move(on_close));
+  auto layer = std::make_unique<overlay_layer>(*this, dialog, hover, anchor, std::move(on_close));
   layer->add_child(std::move(shown));
   overlay_layer &added = add_child(std::move(layer));
   overlays_.push_back(added.id());
-  if (tree() != nullptr) {
+  if (hover) {
+    hover_overlays_.push_back(added.id());
+  } else if (tree() != nullptr) {
     tree()->focus().push_modal(added);
   }
   invalidate_layout();
@@ -143,12 +148,17 @@ auto overlay_host::add_layer(std::unique_ptr<widget> shown, bool dialog, rect an
 
 auto overlay_host::show_popup(std::unique_ptr<widget> popup, rect anchor,
                               std::function<void()> on_close) -> widget_id {
-  return add_layer(std::move(popup), false, anchor, std::move(on_close));
+  return add_layer(std::move(popup), false, false, anchor, std::move(on_close));
+}
+
+auto overlay_host::show_hover_popup(std::unique_ptr<widget> popup, rect anchor,
+                                    std::function<void()> on_close) -> widget_id {
+  return add_layer(std::move(popup), false, true, anchor, std::move(on_close));
 }
 
 auto overlay_host::show_dialog(std::unique_ptr<widget> dialog, std::function<void()> on_close)
     -> widget_id {
-  return add_layer(std::move(dialog), true, {}, std::move(on_close));
+  return add_layer(std::move(dialog), true, false, {}, std::move(on_close));
 }
 
 auto overlay_host::is_open(widget_id overlay) const -> bool {
@@ -165,7 +175,12 @@ auto overlay_host::dismiss(widget_id overlay) -> bool {
   if (found == nullptr) {
     return false;
   }
-  tree()->focus().pop_modal(*found);
+  if (auto const hover = std::ranges::find(hover_overlays_, overlay);
+      hover != hover_overlays_.end()) {
+    hover_overlays_.erase(hover);
+  } else {
+    tree()->focus().pop_modal(*found);
+  }
   auto &layer = static_cast<overlay_layer &>(*found);
   layer.finish();
   tree()->destroy_later(layer);
@@ -175,6 +190,7 @@ auto overlay_host::dismiss(widget_id overlay) -> bool {
 auto overlay_host::dismiss_all() -> void {
   if (tree() == nullptr) {
     overlays_.clear();
+    hover_overlays_.clear();
     return;
   }
   while (!overlays_.empty()) {

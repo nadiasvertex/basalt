@@ -26,6 +26,7 @@ add_library(basalt STATIC
   basalt/widgets/box.cpp
   basalt/widgets/button.cpp
   basalt/widgets/checkbox.cpp
+  basalt/widgets/chip.cpp
   basalt/widgets/choice_control.cpp
   basalt/widgets/dialog.cpp
   basalt/widgets/diagnostics_list.cpp
@@ -47,7 +48,8 @@ add_library(basalt STATIC
   basalt/widgets/tabs.cpp
   basalt/widgets/text_field.cpp
   basalt/widgets/text_line.cpp
-  basalt/widgets/toggle.cpp)
+  basalt/widgets/toggle.cpp
+  basalt/widgets/tooltip.cpp)
 add_library(basalt::basalt ALIAS basalt)
 
 target_compile_features(basalt PUBLIC cxx_std_23)

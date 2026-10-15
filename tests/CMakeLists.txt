@@ -23,6 +23,7 @@ add_executable(basalt_tests
   basalt/button_test.cpp
   basalt/toggle_test.cpp
   basalt/checkbox_test.cpp
+  basalt/chip_test.cpp
   basalt/radio_button_test.cpp
   basalt/menu_test.cpp
   basalt/tabs_test.cpp
@@ -32,8 +33,11 @@ add_executable(basalt_tests
   basalt/status_bar_test.cpp
   basalt/diagnostics_list_test.cpp
   basalt/image_view_test.cpp
+  basalt/hover_delay_test.cpp
+  basalt/overlay_host_test.cpp
   basalt/palette_test.cpp
   basalt/progress_bar_test.cpp
+  basalt/tooltip_test.cpp
   basalt/text/bidi_test.cpp
   basalt/text/font_manager_test.cpp
   basalt/text/font_support.h

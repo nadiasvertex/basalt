@@ -43,6 +43,11 @@ public:
   // which `dismiss` accepts.
   auto show_popup(std::unique_ptr<widget> popup, rect anchor, std::function<void()> on_close = {})
       -> widget_id;
+  // Like `show_popup`, but non-modal: the pointer passes through to the
+  // content, focus stays where it is, and only `dismiss` or `dismiss_all`
+  // closes it. For tooltips and hover popovers.
+  auto show_hover_popup(std::unique_ptr<widget> popup, rect anchor,
+                        std::function<void()> on_close = {}) -> widget_id;
   auto show_dialog(std::unique_ptr<widget> dialog, std::function<void()> on_close = {})
       -> widget_id;
 
@@ -64,11 +69,12 @@ private:
   friend class overlay_layer;
 
   auto replace_content(std::unique_ptr<widget> content) -> void;
-  auto add_layer(std::unique_ptr<widget> shown, bool dialog, rect anchor,
+  auto add_layer(std::unique_ptr<widget> shown, bool dialog, bool hover, rect anchor,
                  std::function<void()> on_close) -> widget_id;
 
   widget_id content_id_;
   std::vector<widget_id> overlays_;
+  std::vector<widget_id> hover_overlays_;
 };
 
 } // namespace basalt
