@@ -8,7 +8,7 @@ IncludeBlocks: Regroup
 IncludeCategories:
   - Regex: '^(<|")catch2/.*'
     Priority: 1
-  - Regex: '^(<|")(med|basalt)/.*'
+  - Regex: '^(<|")basalt/.*'
     Priority: 3
   - Regex: '^<.*\.h>'
     Priority: 4

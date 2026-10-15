@@ -39,12 +39,15 @@ if(BASALT_BUILD_TESTS)
     FIND_PACKAGE_ARGS 3)
   # Catch2 enables its std::string_view support from the language level it is compiled with,
   # which must match the tests.
-  block(SCOPE_FOR VARIABLES)
+  block(SCOPE_FOR VARIABLES PROPAGATE catch2_SOURCE_DIR Catch2_DIR)
     set(CMAKE_CXX_STANDARD 23)
     FetchContent_MakeAvailable(Catch2)
   endblock()
+  # Catch.cmake provides catch_discover_tests.
   if(catch2_SOURCE_DIR)
     list(APPEND CMAKE_MODULE_PATH "${catch2_SOURCE_DIR}/extras")
+  elseif(Catch2_DIR)
+    list(APPEND CMAKE_MODULE_PATH "${Catch2_DIR}")
   endif()
   include(Catch)
 endif()

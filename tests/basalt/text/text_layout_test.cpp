@@ -139,14 +139,19 @@ TEST_CASE("estimates move toward measurements for wrapped text", "[text_layout]"
 TEST_CASE("narrower widths wrap blocks into more lines", "[text_layout]") {
   auto &fonts = require_latin();
   auto const shaper = text_shaper{fonts};
-  auto layout = text_layout{shaper, "aaaa bbbb cccc dddd\nshort", options()};
+  auto const text = std::string{"aaaa bbbb cccc dddd\nshort"};
+  auto layout = text_layout{shaper, text, options()};
   layout.set_width(1000);
   auto const wide = layout.paragraph_of(0)->lines().size();
   CHECK(layout.is_measured(0));
   layout.set_width(100);
   CHECK_FALSE(layout.is_measured(0));
   CHECK(layout.paragraph_of(0)->lines().size() > wide);
-  CHECK(layout.paragraph_of(0)->lines().front().width <= 100.5F);
+  // Spaces at a soft wrap may hang past the width; the rest of the line must fit.
+  auto const &first = layout.paragraph_of(0)->lines().front();
+  auto visible = std::string_view{text}.substr(first.begin, first.end - first.begin);
+  visible = visible.substr(0, visible.find_last_not_of(' ') + 1);
+  CHECK(shaper.shape(visible, options().paragraph.shape).width <= 100.5F);
 }
 
 TEST_CASE("hit testing maps points to document offsets", "[text_layout]") {
