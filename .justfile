@@ -116,3 +116,53 @@ release:
     git tag -a "$tag" -m "Basalt $tag"
     git push origin "$tag"
     echo "Pushed $tag"
+
+[doc('Build the documentation in docs/ as html or pdf into .build/docs.')]
+[group('docs')]
+docs format="html":
+    #!/usr/bin/env bash
+    set -euo pipefail
+    command -v pandoc >/dev/null || { echo "pandoc is required to build the documentation" >&2; exit 1; }
+    mkdir -p .build/docs
+    sources=(docs/index.md docs/architecture.md docs/getting-started.md)
+    case "{{ format }}" in
+      html)
+        pandoc "${sources[@]}" --standalone --toc --css docs/style.css --embed-resources \
+          --metadata title="Basalt" -o .build/docs/basalt.html
+        echo ".build/docs/basalt.html" ;;
+      pdf)
+        pandoc "${sources[@]}" --toc --pdf-engine=xelatex --metadata title="Basalt" \
+          -V geometry:margin=2.5cm -o .build/docs/basalt.pdf
+        echo ".build/docs/basalt.pdf" ;;
+      *)
+        echo "format must be html or pdf (got '{{ format }}')" >&2; exit 1 ;;
+    esac
+
+[doc('Report long sentences and stop words in docs/*.md. Reports only; never fails.')]
+[group('docs')]
+docs-lint:
+    #!/usr/bin/env python3
+    import pathlib, re
+    stop = [w.strip().lower() for w in pathlib.Path("docs/stop-words.txt").read_text().splitlines()
+            if w.strip() and not w.startswith("#")]
+    limit = 25
+    found = 0
+    for path in sorted(pathlib.Path("docs").glob("*.md")):
+        text = re.sub(r"```.*?```", "", path.read_text(), flags=re.S)
+        text = re.sub(r"`[^`]*`", "X", text)
+        text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)
+        for block in re.split(r"\n\s*\n", text):
+            if block.lstrip().startswith(("#", "|")):
+                continue
+            flat = " ".join(re.sub(r"^\s*(?:[-*]|\d+\.)\s+", "", l) for l in block.splitlines())
+            for sentence in re.split(r"(?<=[.!?:])\s+", flat):
+                words = sentence.split()
+                if len(words) > limit:
+                    found += 1
+                    print(f"{path}: {len(words)} words: {sentence[:70]}...")
+                lowered = f" {sentence.lower()} "
+                for word in stop:
+                    if re.search(r"(?<![\w])" + re.escape(word) + r"(?![\w])", lowered):
+                        found += 1
+                        print(f"{path}: stop word '{word}': {sentence[:70]}")
+    print(f"{found} finding(s)")

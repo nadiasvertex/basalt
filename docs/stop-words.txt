@@ -1,0 +1,14 @@
+# One word or phrase per line. Matched case-insensitively outside code blocks.
+should
+could
+might
+via
+utilize
+leverage
+in order to
+simply
+just
+easily
+etc
+e.g.
+i.e.

@@ -21,6 +21,9 @@ The library has three layers.
 
 `basalt/basalt.h` includes every public header.
 
+The [documentation](docs/index.md) has an overview, an architecture description, and a getting-started
+guide. `just docs` builds it as HTML, and `just docs pdf` builds it as PDF.
+
 ## Requirements
 
 Basalt needs CMake 3.25 or later and a C++23 compiler and standard library, including
