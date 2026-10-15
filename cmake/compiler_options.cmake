@@ -16,6 +16,6 @@ endif()
 
 if(BASALT_SANITIZE AND NOT MSVC)
   target_compile_options(basalt_compiler_options INTERFACE
-    -fsanitize=address,undefined -fno-omit-frame-pointer)
+    -fsanitize=address,undefined -fno-sanitize-recover=undefined -fno-omit-frame-pointer)
   target_link_options(basalt_compiler_options INTERFACE -fsanitize=address,undefined)
 endif()

@@ -24,7 +24,8 @@ changing it.
 | `tests/basalt/` | Catch2 tests. `tests/basalt/text/font_support.h` provides the bundled and system font managers. |
 | `tests/data/fonts/` | Noto Sans regular and italic, used by the Latin-only text tests. |
 | `tests/consumer/` | A small project that consumes Basalt by `find_package`, `add_subdirectory` or `FetchContent`. |
-| `cmake/` | Compiler options, dependencies and their pins, install rules, and the include boundary check. |
+| `cmake/` | Compiler options, dependencies and their pins, the offline source fetcher, install rules, and the include boundary check. |
+| `.github/` | The CI and release workflows, and the setup action they share. |
 
 ## Rules
 
@@ -35,6 +36,9 @@ changing it.
 - Compiler flags go on `basalt_compiler_options`, which is linked privately, so they never reach
   consumers.
 - New dependencies are pinned in `cmake/dependency_pins.cmake` by release archive and SHA-256.
+- GitHub Actions are pinned by commit hash, with the version in a trailing comment.
+- CI builds with GCC, Clang, Apple Clang and MSVC with warnings as errors. Code must compile cleanly
+  on all four.
 - Text tests that need only Latin script use `basalt::test::bundled_fonts()`. Use
   `basalt::test::system_fonts()` only for font discovery and for scripts Noto Sans lacks, and skip
   when the script is missing.
@@ -46,6 +50,7 @@ just build              # configure and build the debug preset
 just test               # build and run all tests
 just test sanitize      # the same, with sanitizers
 just consumer           # install a release build and build tests/consumer against it
+just sources            # download the pinned dependency sources for offline builds
 just format             # clang-format every source
 just tokens <dir>       # regenerate tokens.h from the Cubit DTCG token files
 ```

@@ -23,8 +23,9 @@ The library has three layers.
 ## Requirements
 
 Basalt needs CMake 3.25 or later and a C++23 compiler and standard library, including
-`std::expected` and `<print>`. It has been built and tested with Apple Clang 21 on macOS. HarfBuzz
-and, for the tests, Catch2 are downloaded at configure time unless you provide them.
+`std::expected` and `<print>`. CI builds and tests it with GCC 14 and Clang 18 on Ubuntu 24.04,
+Apple Clang on macOS 26, and MSVC from Visual Studio 2022 on Windows. HarfBuzz and, for the tests,
+Catch2 are downloaded at configure time unless you provide them.
 
 ## Building
 
@@ -48,7 +49,7 @@ Link the target `basalt::basalt`. There are three ways to bring it into a CMake 
 ```cmake
 include(FetchContent)
 FetchContent_Declare(basalt
-  GIT_REPOSITORY https://github.com/OWNER/basalt.git
+  GIT_REPOSITORY https://github.com/nadiasvertex/basalt.git
   GIT_TAG v0.1.0)
 FetchContent_MakeAvailable(basalt)
 
@@ -64,7 +65,8 @@ target_link_libraries(my_app PRIVATE basalt::basalt)
 
 ### find_package
 
-Install Basalt, or unpack a release archive, and add its prefix to `CMAKE_PREFIX_PATH`:
+Install Basalt, or unpack a [release archive](#release-archives), and add its prefix to
+`CMAKE_PREFIX_PATH`:
 
 ```sh
 cmake --preset release
@@ -80,6 +82,21 @@ target_link_libraries(my_app PRIVATE basalt::basalt)
 When Basalt is included in another project, its tests, tools and install rules are off by default,
 and its warning flags apply only to its own sources. `tests/consumer` is a small project that uses
 each of these methods.
+
+## Release Archives
+
+Each release on GitHub has prebuilt archives with the headers, Debug and Release static libraries
+and the CMake package, plus a `SHA256SUMS` file. The Debug library has a `d` suffix, and
+`find_package` picks the configuration that matches your build. The archives carry the toolchain
+they were built with:
+
+| Archive | Built with | Needs |
+| ------- | ---------- | ----- |
+| `basalt-<version>-linux-x86_64.tar.gz` | GCC 14 on Ubuntu 24.04 | glibc 2.39 or later and the libstdc++ from GCC 14 or later |
+| `basalt-<version>-macos-arm64.tar.gz` | Apple Clang on macOS 26 | macOS 26 or later on Apple silicon |
+| `basalt-<version>-windows-x64.zip` | MSVC from Visual Studio 2022 | Visual Studio 2022 17.14 or later, dynamic runtime (`/MD`, `/MDd`) |
+
+For other setups, build from source with one of the methods above.
 
 ## Options
 
@@ -100,7 +117,15 @@ your project already links HarfBuzz, set `BASALT_HARFBUZZ=system` so that the pr
 copy. Basalt then looks for HarfBuzz's CMake package first and pkg-config second.
 
 The dependency versions and their checksums are in `cmake/dependency_pins.cmake`. To build without
-network access, set `FETCHCONTENT_SOURCE_DIR_HARFBUZZ` and `FETCHCONTENT_SOURCE_DIR_CATCH2` to local
+network access later, download and unpack the pinned sources once, then pass the generated initial
+cache file when you configure:
+
+```sh
+cmake -D BASALT_SOURCES_DIR=.build/sources -P cmake/fetch_sources.cmake
+cmake --preset debug -C .build/sources/init.cmake
+```
+
+You can also set `FETCHCONTENT_SOURCE_DIR_HARFBUZZ` and `FETCHCONTENT_SOURCE_DIR_CATCH2` to your own
 copies.
 
 ## Design Tokens
@@ -117,5 +142,7 @@ machine's fonts, and skip when a script they need is not installed.
 
 ## License
 
-The license has not been chosen yet. The fonts in `tests/data/fonts` are under the SIL Open Font
-License; see `tests/data/fonts/OFL.txt`.
+Basalt is under the Apache License 2.0; see `LICENSE`. In the default bundled mode the library
+contains HarfBuzz, which is under an MIT-style license. Installs and release archives include both
+licenses in `share/doc/basalt`. The fonts in `tests/data/fonts` are under the SIL Open Font License;
+see `tests/data/fonts/OFL.txt`. They are used only by the tests and are not installed.

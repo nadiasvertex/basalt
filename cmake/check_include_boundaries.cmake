@@ -2,6 +2,8 @@
 #   - a quoted include with a directory must be a basalt/ header;
 #   - basalt/basalt.h must include every other public header.
 # Usage: cmake -DBASALT_SOURCE_DIR=<repo> -P <this>
+cmake_minimum_required(VERSION 3.25)
+
 set(_errors "")
 set(_include_regex "^[ \t]*#[ \t]*include[ \t]*\"([^\"]+)\"")
 

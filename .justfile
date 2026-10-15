@@ -30,6 +30,11 @@ test preset="debug": (build preset)
 clean:
     rm -rf .build
 
+[doc('Download and unpack the pinned dependency sources for offline builds.')]
+[group('build')]
+sources dir=".build/sources":
+    cmake -D BASALT_SOURCES_DIR={{ dir }} -P cmake/fetch_sources.cmake
+
 [doc('Install a release build into the given prefix.')]
 [group('build')]
 install prefix=".build/prefix": (build "release")

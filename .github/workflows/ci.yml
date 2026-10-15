@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  build:
+    name: build (${{ matrix.toolchain.name }}, ${{ matrix.config }})
+    runs-on: ${{ matrix.toolchain.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        config: [Debug, Release]
+        toolchain:
+          - { name: linux-gcc, os: ubuntu-24.04, cxx: g++-14 }
+          - { name: linux-clang, os: ubuntu-24.04, cxx: clang++-18 }
+          - { name: macos, os: macos-26, cxx: clang++ }
+          - { name: windows, os: windows-2022, cxx: cl }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      - name: Configure
+        run: >
+          cmake -S . -B .build/ci -G Ninja -C .build/sources/init.cmake
+          -D CMAKE_BUILD_TYPE=${{ matrix.config }}
+          -D CMAKE_CXX_COMPILER=${{ matrix.toolchain.cxx }}
+      - name: Build
+        run: cmake --build .build/ci --parallel
+      - name: Test
+        run: ctest --test-dir .build/ci --output-on-failure --no-tests=error
+
+  sanitize:
+    runs-on: ubuntu-24.04
+    env:
+      ASAN_OPTIONS: detect_leaks=1:abort_on_error=1
+      UBSAN_OPTIONS: print_stacktrace=1
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+      # Clang 18's AddressSanitizer crashes at startup with the runner's default mmap randomization.
+      - name: Reduce mmap randomization
+        run: sudo sysctl vm.mmap_rnd_bits=28
+      - name: Configure
+        run: >
+          cmake -S . -B .build/ci -G Ninja -C .build/sources/init.cmake
+          -D CMAKE_BUILD_TYPE=Debug -D CMAKE_CXX_COMPILER=clang++-18 -D BASALT_SANITIZE=ON
+      - name: Build
+        run: cmake --build .build/ci --parallel
+      - name: Test
+        run: ctest --test-dir .build/ci --output-on-failure --no-tests=error
+
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install clang-format
+        run: pip install --user clang-format==23.1.2
+      - name: Check formatting
+        run: >
+          git ls-files -- 'include/*.h' 'src/*.cpp' 'src/*.h' 'tests/*.cpp' 'tests/*.h' 'tools/*.cpp'
+          | xargs clang-format --dry-run --Werror
+
+  consumer:
+    name: consumer (${{ matrix.toolchain.name }})
+    runs-on: ${{ matrix.toolchain.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        toolchain:
+          - { name: linux, os: ubuntu-24.04, cxx: g++-14 }
+          - { name: macos, os: macos-26, cxx: clang++ }
+          - { name: windows, os: windows-2022, cxx: cl }
+    env:
+      CMAKE_GENERATOR: Ninja
+      CMAKE_BUILD_TYPE: Release
+      CXX: ${{ matrix.toolchain.cxx }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ./.github/actions/setup
+
+      - name: Install Basalt
+        run: |
+          cmake -S . -B .build/install-build -C .build/sources/init.cmake -D BASALT_BUILD_TESTS=OFF
+          cmake --build .build/install-build --parallel
+          cmake --install .build/install-build --prefix .build/prefix
+      # pwd -W gives Git Bash on Windows a path that CMake understands.
+      - name: find_package
+        run: |
+          cmake -S tests/consumer -B .build/consumer-package \
+            -D BASALT_CONSUME=package -D CMAKE_PREFIX_PATH="$(pwd -W 2>/dev/null || pwd)/.build/prefix"
+          cmake --build .build/consumer-package
+          ctest --test-dir .build/consumer-package --output-on-failure --no-tests=error
+
+      - name: add_subdirectory
+        run: |
+          cmake -S tests/consumer -B .build/consumer-subdirectory -C .build/sources/init.cmake \
+            -D BASALT_CONSUME=subdirectory
+          cmake --build .build/consumer-subdirectory
+          ctest --test-dir .build/consumer-subdirectory --output-on-failure --no-tests=error
+
+      # A pull request's merge commit is not on any branch, so FetchContent cannot clone it.
+      - name: FetchContent
+        if: github.event_name != 'pull_request'
+        run: |
+          cmake -S tests/consumer -B .build/consumer-fetch -C .build/sources/init.cmake \
+            -D BASALT_CONSUME=fetch \
+            -D BASALT_GIT_REPOSITORY=${{ github.server_url }}/${{ github.repository }}.git \
+            -D BASALT_GIT_TAG=${{ github.sha }}
+          cmake --build .build/consumer-fetch
+          ctest --test-dir .build/consumer-fetch --output-on-failure --no-tests=error

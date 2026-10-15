@@ -1,0 +1,24 @@
+name: Set up a Basalt build
+description: >
+  Loads the MSVC environment on Windows and unpacks the pinned dependency sources, downloading only
+  archives that are not cached. Configure steps pass -C .build/sources/init.cmake so that
+  FetchContent uses these copies.
+
+runs:
+  using: composite
+  steps:
+    - name: Load the MSVC environment
+      if: runner.os == 'Windows'
+      uses: ilammy/msvc-dev-cmd@0b201ec74fa43914dc39ae48a89fd1d8cb592756 # v1.13.0
+      with:
+        arch: x64
+
+    - name: Restore dependency archives
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .build/sources/downloads
+        key: sources-${{ runner.os }}-${{ hashFiles('cmake/dependency_pins.cmake') }}
+
+    - name: Unpack dependency sources
+      shell: bash
+      run: cmake -D BASALT_SOURCES_DIR=.build/sources -P cmake/fetch_sources.cmake

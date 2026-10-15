@@ -7,7 +7,7 @@ project(basalt_consumer LANGUAGES CXX)
 
 set(BASALT_CONSUME "package" CACHE STRING "How to consume Basalt: package, subdirectory or fetch")
 set(BASALT_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/../.." CACHE PATH "Basalt checkout")
-set(BASALT_GIT_REPOSITORY "https://github.com/OWNER/basalt.git" CACHE STRING "Basalt repository")
+set(BASALT_GIT_REPOSITORY "https://github.com/nadiasvertex/basalt.git" CACHE STRING "Basalt repository")
 set(BASALT_GIT_TAG "main" CACHE STRING "Basalt tag or commit")
 
 if(BASALT_CONSUME STREQUAL "package")
