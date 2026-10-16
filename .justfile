@@ -68,6 +68,27 @@ demo-sdl-skia-gpu *args:
     cmake --build .build/example-gpu
     .build/example-gpu/basalt_sdl_skia_gpu {{ args }}
 
+[doc('Build the one-widget examples and run them. Each prints what its handlers received.')]
+[group('build')]
+widget-examples:
+    cmake -S examples/widgets -B .build/widgets -G Ninja -DCMAKE_BUILD_TYPE=Release
+    cmake --build .build/widgets
+    ctest --test-dir .build/widgets --output-on-failure
+
+[doc('Regenerate the widget screenshots in docs/images/widgets. Needs Python with Pillow.')]
+[group('docs')]
+screenshots: widget-examples
+    #!/usr/bin/env bash
+    set -euo pipefail
+    python3 -c 'import PIL' 2>/dev/null || { echo "Pillow is required: pip install pillow" >&2; exit 1; }
+    rm -rf .build/screenshots
+    mkdir -p .build/screenshots
+    for source in examples/widgets/*.cpp; do
+      name=$(basename "$source" .cpp)
+      .build/widgets/"$name" ".build/screenshots/$name.pam" > /dev/null
+    done
+    python3 tools/screenshots/pam_to_png.py docs/images/widgets .build/screenshots/*.pam
+
 [doc('Regenerate generated/basalt/tokens.h from the Cubit DTCG tokens.')]
 [group('build')]
 tokens tokens_dir="../cubit/packages/cubit-styles/src/tokens":
@@ -131,18 +152,21 @@ docs format="html":
     set -euo pipefail
     command -v pandoc >/dev/null || { echo "pandoc is required to build the documentation" >&2; exit 1; }
     mkdir -p .build/docs
-    sources=(docs/index.md docs/architecture.md docs/getting-started.md)
+    widgets=(docs/widgets/index.md $(ls docs/widgets/*.md | grep -v '/index.md$'))
+    sources=(docs/index.md docs/architecture.md docs/getting-started.md "${widgets[@]}")
+    filters=(--lua-filter docs/filters/graphviz.lua --lua-filter docs/filters/include.lua
+             --lua-filter docs/filters/links.lua)
     case "{{ format }}" in
       html)
         command -v dot >/dev/null || { echo "Graphviz (dot) is required to render diagrams" >&2; exit 1; }
-        pandoc "${sources[@]}" --standalone --toc --css docs/style.css --embed-resources \
-          --resource-path docs --lua-filter docs/filters/graphviz.lua \
+        pandoc "${sources[@]}" --standalone --toc --toc-depth=2 --css docs/style.css \
+          --embed-resources --resource-path docs:docs/widgets "${filters[@]}" \
           --metadata title="Basalt" -o .build/docs/basalt.html
         echo ".build/docs/basalt.html" ;;
       pdf)
         command -v dot >/dev/null || { echo "Graphviz (dot) is required to render diagrams" >&2; exit 1; }
-        pandoc "${sources[@]}" --toc --pdf-engine=xelatex --resource-path docs \
-          --lua-filter docs/filters/graphviz.lua --metadata title="Basalt" \
+        pandoc "${sources[@]}" --toc --toc-depth=2 --pdf-engine=xelatex \
+          --resource-path docs:docs/widgets "${filters[@]}" --metadata title="Basalt" \
           -V geometry:margin=2.5cm -o .build/docs/basalt.pdf
         echo ".build/docs/basalt.pdf" ;;
       *)
@@ -155,7 +179,7 @@ website: (docs "html")
     mkdir -p website/docs
     cp .build/docs/basalt.html website/docs/index.html
 
-[doc('Report long sentences and stop words in docs/*.md. Reports only; never fails.')]
+[doc('Report long sentences and stop words in docs/**/*.md. Reports only; never fails.')]
 [group('docs')]
 docs-lint:
     #!/usr/bin/env python3
@@ -164,7 +188,7 @@ docs-lint:
             if w.strip() and not w.startswith("#")]
     limit = 25
     found = 0
-    for path in sorted(pathlib.Path("docs").glob("*.md")):
+    for path in sorted(pathlib.Path("docs").glob("**/*.md")):
         text = re.sub(r"```.*?```", "", path.read_text(), flags=re.S)
         text = re.sub(r"`[^`]*`", "X", text)
         text = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", text)

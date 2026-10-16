@@ -19,8 +19,11 @@ function(example_declare_pinned name url commit)
       -P "${CMAKE_CURRENT_LIST_DIR}/git_fetch_commit.cmake")
 endfunction()
 
-find_package(SDL3 3.2 CONFIG QUIET)
-if(NOT TARGET SDL3::SDL3)
+# A project that opens no window sets EXAMPLE_WITHOUT_SDL before including this file.
+if(NOT EXAMPLE_WITHOUT_SDL)
+  find_package(SDL3 3.2 CONFIG QUIET)
+endif()
+if(NOT EXAMPLE_WITHOUT_SDL AND NOT TARGET SDL3::SDL3)
   message(STATUS "SDL 3 not found; fetching ${EXAMPLE_SDL3_COMMIT}")
   set(SDL_SHARED OFF CACHE BOOL "" FORCE)
   set(SDL_STATIC ON CACHE BOOL "" FORCE)

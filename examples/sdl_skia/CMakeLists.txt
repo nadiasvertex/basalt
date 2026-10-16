@@ -36,9 +36,9 @@ include(example_dependencies)
 
 add_executable(basalt_sdl_skia
   main.cpp
-  skia_painter.cpp
   ../common/demo_ui.cpp
   ../common/sdl_events.cpp
+  ../common/skia_painter.cpp
   ../common/skia_replay.cpp)
 target_include_directories(basalt_sdl_skia PRIVATE ../common)
 target_link_libraries(basalt_sdl_skia PRIVATE basalt::basalt SDL3::SDL3 skia::skia)

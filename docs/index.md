@@ -6,9 +6,9 @@ Basalt is a C++23 widget library. It follows the Cubit design system. Basalt tur
 into paint commands and accessibility snapshots. Your application supplies the window, the
 renderer, and the input events.
 
-This guide has three parts. This overview describes what Basalt does. The architecture chapter
+This guide has four parts. This overview describes what Basalt does. The architecture chapter
 describes how the parts fit together. The getting-started chapter shows how to build a first
-program.
+program. The widgets chapter has one page for each widget.
 
 ## Who this guide is for
 
@@ -61,5 +61,6 @@ options.
 
 - Read [Architecture](architecture.md) to learn the main types and the frame cycle.
 - Read [Getting Started](getting-started.md) to build a program.
+- Read [Widgets](widgets/index.md) to find the widget that you need. Each page has an example.
 - Read the headers in `include/basalt/`. Each class has a comment that states its rules.
 - Read `examples/sdl_skia` for a complete host.

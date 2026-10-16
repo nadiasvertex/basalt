@@ -27,8 +27,11 @@ The library has three layers.
 
 `basalt/basalt.h` includes every public header.
 
-The [documentation](docs/index.md) has an overview, an architecture description, and a getting-started
-guide. `just docs` builds it as HTML, and `just docs pdf` builds it as PDF.
+The [documentation](docs/index.md) has an overview, an architecture description, a getting-started
+guide, and a [page for each widget](docs/widgets/index.md). Each widget page has a screenshot and
+refers to a short program in `examples/widgets/`. `just widget-examples` builds and runs those
+programs, and `just screenshots` regenerates the screenshots.
+`just docs` builds the documentation as HTML, and `just docs pdf` builds it as PDF.
 `just website` builds the HTML with diagrams and copies it to `website/docs/`. Diagrams need
 Graphviz (`dot`).
 
