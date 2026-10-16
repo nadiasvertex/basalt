@@ -1,5 +1,7 @@
 #pragma once
 
+#include "basalt/geometry.h"
+
 #include <cstddef>
 #include <cstdint>
 #include <filesystem>
@@ -7,6 +9,7 @@
 #include <optional>
 #include <span>
 #include <string>
+#include <vector>
 
 namespace basalt::text {
 
@@ -18,6 +21,20 @@ struct font_metrics {
   float line_gap = 0;
 
   [[nodiscard]] constexpr auto height() const -> float { return ascent + descent + line_gap; }
+};
+
+enum class outline_verb : std::uint8_t { move_to, line_to, quad_to, cubic_to, close };
+
+// The outline of one glyph as a path. Each verb uses the next points in order: one for
+// `move_to` and `line_to`, two for `quad_to` (control, end), three for `cubic_to` (control,
+// control, end) and none for `close`.
+struct glyph_outline {
+  std::vector<outline_verb> verbs;
+  std::vector<point> points;
+
+  [[nodiscard]] auto empty() const -> bool { return verbs.empty(); }
+  [[nodiscard]] friend auto operator==(glyph_outline const &, glyph_outline const &)
+      -> bool = default;
 };
 
 // One face of an OpenType font file, loaded and immutable. Faces are shared
@@ -54,6 +71,11 @@ public:
   [[nodiscard]] auto glyph_for(char32_t scalar) const -> std::optional<std::uint32_t>;
   [[nodiscard]] auto covers(char32_t scalar) const -> bool { return glyph_for(scalar).has_value(); }
   [[nodiscard]] auto metrics(float size) const -> font_metrics;
+  // The outline of `glyph` at `size`, with this face's variation applied, so renderers can draw
+  // glyphs without a font engine of their own. Points are relative to the glyph origin on the
+  // baseline, with y growing downward. Empty for a glyph without an outline, such as a space,
+  // a bitmap glyph or an unknown id.
+  [[nodiscard]] auto outline(std::uint32_t glyph, float size) const -> glyph_outline;
 
   // Faces are made by `font_manager`; `impl` is only defined inside the library.
   struct impl;

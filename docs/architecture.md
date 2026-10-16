@@ -122,6 +122,11 @@ destroyed.
 The host renderer reads the commands in order. A renderer needs one case for each command type.
 The Skia example in `examples/common/skia_replay.cpp` is a complete renderer.
 
+To draw a glyph run, a renderer can load the font file from `font_face::data()` into its own font
+engine. It must then apply `variation_weight()` itself. A renderer without a font engine can use
+`font_face::outline`. It gives the outline of one glyph as a path, with the weight of the face
+applied.
+
 Each widget paints inside its own bounds and its own coordinates. The tree clips children to the
 bounds of the parent. A disabled subtree is drawn in a layer at the theme's disabled opacity.
 

@@ -77,6 +77,78 @@ TEST_CASE("a face with latin coverage reports glyphs and metrics", "[fonts]") {
   CHECK(doubled.ascent == metrics.ascent * 2);
 }
 
+namespace {
+
+auto outline_bounds(glyph_outline const &outline) -> basalt::rect {
+  auto bounds = basalt::rect{outline.points.front(), {}};
+  for (auto const point : outline.points) {
+    bounds = basalt::rect::from_edges(
+        std::min(bounds.left(), point.x), std::min(bounds.top(), point.y),
+        std::max(bounds.right(), point.x), std::max(bounds.bottom(), point.y));
+  }
+  return bounds;
+}
+
+auto points_used(glyph_outline const &outline) -> std::size_t {
+  auto count = std::size_t{0};
+  for (auto const verb : outline.verbs) {
+    count += verb == outline_verb::quad_to    ? 2
+             : verb == outline_verb::cubic_to ? 3
+             : verb == outline_verb::close    ? 0
+                                              : 1;
+  }
+  return count;
+}
+
+} // namespace
+
+TEST_CASE("a glyph outline stands on the baseline at the requested size", "[fonts]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  auto const face = fonts.match({"Noto Sans"});
+  REQUIRE(face != nullptr);
+  auto const glyph = face->glyph_for(U'H');
+  REQUIRE(glyph.has_value());
+
+  auto const outline = face->outline(*glyph, 100);
+  REQUIRE_FALSE(outline.empty());
+  CHECK(outline.verbs.front() == outline_verb::move_to);
+  CHECK(outline.verbs.back() == outline_verb::close);
+  CHECK(points_used(outline) == outline.points.size());
+  auto const bounds = outline_bounds(outline);
+  CHECK(bounds.left() >= 0);
+  CHECK(bounds.right() <= 100);
+  // Capitals rise above the baseline, which is y = 0, and stop on it.
+  CHECK(bounds.top() < -60);
+  CHECK(bounds.top() > -100);
+  CHECK(bounds.bottom() == 0);
+
+  auto const doubled = face->outline(*glyph, 200);
+  REQUIRE(doubled.points.size() == outline.points.size());
+  CHECK(doubled.points[1].x == outline.points[1].x * 2);
+  CHECK(doubled.points[1].y == outline.points[1].y * 2);
+}
+
+TEST_CASE("a space has no outline", "[fonts]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  auto const face = fonts.match({"Noto Sans"});
+  REQUIRE(face != nullptr);
+  CHECK(face->outline(face->glyph_for(U' ').value_or(0), 100).empty());
+}
+
+TEST_CASE("a variable face draws its outlines at its own weight", "[fonts]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  auto const regular = fonts.match({"Noto Sans", 400});
+  auto const bold = fonts.match({"Noto Sans", 700});
+  REQUIRE(regular != nullptr);
+  REQUIRE(bold != nullptr);
+  REQUIRE(bold->variation_weight() == 700);
+  REQUIRE(regular->variation_weight() == 400);
+  auto const stem = regular->glyph_for(U'l');
+  REQUIRE(stem.has_value());
+  CHECK(outline_bounds(bold->outline(*stem, 100)).width() >
+        outline_bounds(regular->outline(*stem, 100)).width() * 1.3F);
+}
+
 TEST_CASE("matching is case-insensitive and picks the nearest weight", "[fonts]") {
   auto &fonts = basalt::test::system_fonts();
   auto const families = fonts.families();
