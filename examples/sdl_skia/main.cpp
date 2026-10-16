@@ -6,20 +6,21 @@
 
 #include "basalt/basalt.h"
 
-#include "demo_ui.h"
-#include "sdl_events.h"
-#include "skia_painter.h"
-#include "window_metrics.h"
-
 #include <SDL3/SDL.h>
 
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <format>
+#include <functional>
 #include <memory>
 #include <print>
 #include <string>
+
+#include "demo_ui.h"
+#include "sdl_events.h"
+#include "skia_painter.h"
+#include "window_metrics.h"
 
 namespace {
 
@@ -48,6 +49,17 @@ auto present(SDL_Window &window, example::pixel_view const &pixels) -> bool {
   SDL_SetSurfaceBlendMode(source.get(), SDL_BLENDMODE_NONE);
   return SDL_BlitSurface(source.get(), nullptr, target, nullptr) &&
          SDL_UpdateWindowSurface(&window);
+}
+
+struct resize_watch {
+  std::function<void()> redraw;
+};
+
+auto on_resize_event(void *data, SDL_Event *event) -> bool {
+  if (event->type == SDL_EVENT_WINDOW_RESIZED && SDL_IsMainThread()) {
+    static_cast<resize_watch *>(data)->redraw();
+  }
+  return true;
 }
 
 } // namespace
@@ -86,11 +98,39 @@ auto main() -> int {
   auto commands = basalt::paint_commands{};
   auto redraw = true;
 
+  // Repaints the window when anything changed. Damage is not used to limit painting: the whole
+  // viewport is repainted.
+  auto const draw_frame = [&] {
+    tree.update_layout();
+    auto const damaged = !tree.take_damage().empty();
+    if (damaged || redraw) {
+      commands.clear();
+      basalt::paint_tree(tree, commands);
+      auto const metrics = example::query_metrics(*window);
+      painter.render(commands, metrics.pixel_width, metrics.pixel_height, metrics.scale,
+                     tree.theme().colors.background_default);
+      if (!present(*window, painter.pixels())) {
+        std::println(stderr, "Presenting failed: {}", SDL_GetError());
+      }
+      redraw = false;
+    }
+  };
+
+  // The operating system runs a modal loop while the user drags the window edge, so the event
+  // loop below does not run. Resizing here keeps the content laid out at the new size.
+  auto const redraw_on_resize = [&] {
+    example::apply_metrics(tree, example::query_metrics(*window));
+    redraw = true;
+    draw_frame();
+  };
+  auto const watch = resize_watch{redraw_on_resize};
+  SDL_AddEventWatch(on_resize_event, const_cast<resize_watch *>(&watch));
+
   while (state.running) {
     auto event = SDL_Event{};
     auto const animating = state.working || tree.needs_frame() || redraw;
-    auto available = animating ? SDL_WaitEventTimeout(&event, frame_interval_ms)
-                               : SDL_WaitEvent(&event);
+    auto available =
+        animating ? SDL_WaitEventTimeout(&event, frame_interval_ms) : SDL_WaitEvent(&event);
     for (; available; available = SDL_PollEvent(&event)) {
       switch (event.type) {
       case SDL_EVENT_QUIT:
@@ -121,22 +161,11 @@ auto main() -> int {
     tree.update_layout();
     router.update_hover();
 
-    // Damage is not used to limit painting: the whole viewport is repainted when anything changed.
-    auto const damaged = !tree.take_damage().empty();
-    if (damaged || redraw) {
-      commands.clear();
-      basalt::paint_tree(tree, commands);
-      auto const metrics = example::query_metrics(*window);
-      painter.render(commands, metrics.pixel_width, metrics.pixel_height, metrics.scale,
-                     tree.theme().colors.background_default);
-      if (!present(*window, painter.pixels())) {
-        std::println(stderr, "Presenting failed: {}", SDL_GetError());
-      }
-      redraw = false;
-    }
+    draw_frame();
     tree.collect_garbage();
   }
 
+  SDL_RemoveEventWatch(on_resize_event, const_cast<resize_watch *>(&watch));
   SDL_Quit();
   return 0;
 }

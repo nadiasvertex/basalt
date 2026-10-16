@@ -6,20 +6,21 @@
 
 #include "basalt/basalt.h"
 
-#include "damage_renderer.h"
-#include "demo_ui.h"
-#include "sdl_events.h"
-#include "surface_target.h"
-#include "window_metrics.h"
-
 #include <SDL3/SDL.h>
 
 #include <chrono>
 #include <cstdio>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <print>
 #include <string_view>
+
+#include "damage_renderer.h"
+#include "demo_ui.h"
+#include "sdl_events.h"
+#include "surface_target.h"
+#include "window_metrics.h"
 
 namespace {
 
@@ -85,6 +86,17 @@ auto create_output(bool software) -> output {
   return {std::move(window), std::move(target)};
 }
 
+struct resize_watch {
+  std::function<void()> redraw;
+};
+
+auto on_resize_event(void *data, SDL_Event *event) -> bool {
+  if (event->type == SDL_EVENT_WINDOW_RESIZED && SDL_IsMainThread()) {
+    static_cast<resize_watch *>(data)->redraw();
+  }
+  return true;
+}
+
 } // namespace
 
 auto main(int argc, char **argv) -> int {
@@ -125,6 +137,30 @@ auto main(int argc, char **argv) -> int {
   example::apply_metrics(tree, metrics);
   renderer.set_metrics(metrics);
 
+  auto const draw_frame = [&] {
+    tree.update_layout();
+    auto const damage = tree.take_damage();
+    auto repainted = 0.0F;
+    if (auto const result =
+            renderer.render(tree, damage, tree.theme().colors.background_default, &repainted);
+        !result) {
+      std::println(stderr, "Rendering failed: {}", result.error().message);
+    } else if (settings.log_damage && repainted > 0) {
+      std::println("repainted {:.1f}% of the window", repainted * 100);
+    }
+  };
+
+  // The operating system runs a modal loop while the user drags the window edge, so the event
+  // loop below does not run. Resizing here keeps the content laid out at the new size.
+  auto const redraw_on_resize = [&] {
+    auto const changed = example::query_metrics(window);
+    example::apply_metrics(tree, changed);
+    renderer.set_metrics(changed);
+    draw_frame();
+  };
+  auto const watch = resize_watch{redraw_on_resize};
+  SDL_AddEventWatch(on_resize_event, const_cast<resize_watch *>(&watch));
+
   while (state.running) {
     auto event = SDL_Event{};
     auto const animating = state.working || tree.needs_frame() || renderer.needs_full_redraw();
@@ -162,18 +198,11 @@ auto main(int argc, char **argv) -> int {
     tree.update_layout();
     router.update_hover();
 
-    auto const damage = tree.take_damage();
-    auto repainted = 0.0F;
-    if (auto const result = renderer.render(tree, damage, tree.theme().colors.background_default,
-                                            &repainted);
-        !result) {
-      std::println(stderr, "Rendering failed: {}", result.error().message);
-    } else if (settings.log_damage && repainted > 0) {
-      std::println("repainted {:.1f}% of the window", repainted * 100);
-    }
+    draw_frame();
     tree.collect_garbage();
   }
 
+  SDL_RemoveEventWatch(on_resize_event, const_cast<resize_watch *>(&watch));
   SDL_Quit();
   return 0;
 }
