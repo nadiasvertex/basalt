@@ -4,7 +4,7 @@
 
 # Basalt
 
-[![Documentation](https://shields.io/badege/documentation-website)](https://basalt.nadiasvertex.workers.dev/)
+[![Documentation](https://img.shields.io/badge/website-documentation-blue)](https://basalt.nadiasvertex.workers.dev/)
 
 Basalt is a C++23 widget library that follows the Cubit design system. It provides a widget tree
 with layout, input routing, focus and accessibility, a set of standard widgets, and Unicode text
