@@ -134,16 +134,26 @@ docs format="html":
     sources=(docs/index.md docs/architecture.md docs/getting-started.md)
     case "{{ format }}" in
       html)
+        command -v dot >/dev/null || { echo "Graphviz (dot) is required to render diagrams" >&2; exit 1; }
         pandoc "${sources[@]}" --standalone --toc --css docs/style.css --embed-resources \
+          --resource-path docs --lua-filter docs/filters/graphviz.lua \
           --metadata title="Basalt" -o .build/docs/basalt.html
         echo ".build/docs/basalt.html" ;;
       pdf)
-        pandoc "${sources[@]}" --toc --pdf-engine=xelatex --metadata title="Basalt" \
+        command -v dot >/dev/null || { echo "Graphviz (dot) is required to render diagrams" >&2; exit 1; }
+        pandoc "${sources[@]}" --toc --pdf-engine=xelatex --resource-path docs \
+          --lua-filter docs/filters/graphviz.lua --metadata title="Basalt" \
           -V geometry:margin=2.5cm -o .build/docs/basalt.pdf
         echo ".build/docs/basalt.pdf" ;;
       *)
         echo "format must be html or pdf (got '{{ format }}')" >&2; exit 1 ;;
     esac
+
+[doc('Build the HTML documentation with diagrams and copy it to website/docs/index.html.')]
+[group('docs')]
+website: (docs "html")
+    mkdir -p website/docs
+    cp .build/docs/basalt.html website/docs/index.html
 
 [doc('Report long sentences and stop words in docs/*.md. Reports only; never fails.')]
 [group('docs')]

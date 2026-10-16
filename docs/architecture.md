@@ -7,15 +7,34 @@ commands out of it. This chapter describes each part and the order in which they
 
 The host is your application. The host and Basalt exchange data in one loop.
 
-```text
- host                              Basalt
- ----                              ------
- window events  --translate-->     event_router --> widget_tree
-                                                       |
-                                    update_layout, take_damage
-                                                       |
- renderer  <------ paint_commands <-- paint_tree <-----+
- platform accessibility  <------- accessibility::build
+```dot
+digraph host_boundary {
+  rankdir=LR;
+  bgcolor="transparent";
+  node [shape=box, style="rounded,filled", fillcolor="#ffffff", color="#1f2225", fontcolor="#1f2225", fontname="Helvetica"];
+  edge [color="#1f2225", fontcolor="#1f2225", fontname="Helvetica", fontsize=10];
+
+  subgraph cluster_host {
+    label="Host"; fontname="Helvetica"; color="#9ba1a7";
+    events [label="Window events"];
+    renderer [label="Renderer"];
+    platform [label="Platform accessibility"];
+  }
+  subgraph cluster_basalt {
+    label="Basalt"; fontname="Helvetica"; color="#f0580b";
+    router [label="event_router", fillcolor="#fde6d9"];
+    tree [label="widget_tree", fillcolor="#fde6d9"];
+    paint [label="paint_tree", fillcolor="#fde6d9"];
+    access [label="accessibility::build", fillcolor="#fde6d9"];
+  }
+
+  events -> router [label="translate"];
+  router -> tree;
+  tree -> paint [label="update_layout,\ntake_damage"];
+  paint -> renderer [label="paint_commands"];
+  tree -> access;
+  access -> platform [label="snapshot"];
+}
 ```
 
 The host does four jobs:

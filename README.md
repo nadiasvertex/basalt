@@ -27,6 +27,8 @@ The library has three layers.
 
 The [documentation](docs/index.md) has an overview, an architecture description, and a getting-started
 guide. `just docs` builds it as HTML, and `just docs pdf` builds it as PDF.
+`just website` builds the HTML with diagrams and copies it to `website/docs/`. Diagrams need
+Graphviz (`dot`).
 
 ## Requirements
 

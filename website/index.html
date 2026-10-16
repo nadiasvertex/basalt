@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Basalt: a C++ widget library</title>
+  <meta name="description" content="Basalt is a C++23 widget library that follows the Cubit design system. It turns a widget tree into paint commands and accessibility snapshots.">
+  <meta name="color-scheme" content="light">
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="site">
+    <div class="wrap">
+      <a class="brand" href="#top"><img src="images/favicon.png" alt=""><span>Basalt</span></a>
+      <nav class="site" aria-label="Primary">
+        <a href="#features">Features</a>
+        <a href="#how-it-works">How it works</a>
+        <a href="#example">Example</a>
+        <a href="docs/">Documentation</a>
+        <a href="https://github.com/nadiasvertex/basalt">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <div class="wrap hero">
+      <img class="logo" src="images/basalt-logo-light.png" alt="Basalt: C++ widget library">
+      <h1>Widgets for C++ applications, without the window system.</h1>
+      <p class="lead">Basalt turns a widget tree into paint commands and accessibility snapshots. It follows the Cubit design system. Your application supplies the window, the renderer, and the input.</p>
+      <div class="actions">
+        <a class="button primary" href="docs/">Read the documentation</a>
+        <a class="button" href="https://github.com/nadiasvertex/basalt">View on GitHub</a>
+      </div>
+    </div>
+
+    <section id="features" class="alt">
+      <div class="wrap">
+        <h2>Features</h2>
+        <p class="section-lead">Basalt covers the parts of a user interface that do not depend on a platform.</p>
+        <div class="grid">
+          <div class="card">
+            <h3>Cubit design system</h3>
+            <p>Colors, sizes, and text styles come from Cubit tokens, in light and dark color schemes and several densities.</p>
+          </div>
+          <div class="card">
+            <h3>Many standard widgets</h3>
+            <p>Buttons, text fields, menus, tabs, dialogs, selects, accordions, split views, scroll views, and more.</p>
+          </div>
+          <div class="card">
+            <h3>Unicode text</h3>
+            <p>Font discovery and fallback, HarfBuzz shaping, bidirectional text, and line breaking.</p>
+          </div>
+          <div class="card">
+            <h3>Accessibility built in</h3>
+            <p>Every widget describes itself. Basalt builds an immutable snapshot that a platform bridge can send to assistive technology.</p>
+          </div>
+          <div class="card">
+            <h3>Layout, focus, and input</h3>
+            <p>Two-pass layout, event routing, keyboard focus, and damage tracking for efficient repaints.</p>
+          </div>
+          <div class="card">
+            <h3>Plain CMake</h3>
+            <p>Use <code>FetchContent</code>, <code>add_subdirectory</code>, or an installed package. CI builds with GCC, Clang, Apple Clang, and MSVC.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="how-it-works">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <p class="section-lead">Basalt never touches windows, GPUs, or the operating system's input. The same widget tree works with SDL and Skia, with a GPU renderer, or in a test with no window.</p>
+        <div class="layers">
+          <div class="layer card">
+            <h3><span>Core</span></h3>
+            <p>Geometry, units, color, theme, the widget tree, layout, events, focus, accessibility, and paint commands.</p>
+          </div>
+          <div class="layer card">
+            <h3><span>Text</span></h3>
+            <p>Font discovery, fallback, shaping, bidirectional text, line breaking, and paragraph layout.</p>
+          </div>
+          <div class="layer card">
+            <h3><span>Widgets</span></h3>
+            <p>The Cubit widgets, built on the core and text layers, plus a base class for your own.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="example" class="alt">
+      <div class="wrap">
+        <h2>A small example</h2>
+        <div class="split">
+          <div>
+            <p class="section-lead" style="margin-top:1rem">Make a tree, add widgets, send input, and record paint commands. The host draws the commands with any renderer.</p>
+            <ul class="checks">
+              <li>C++23, with <code>std::expected</code> and value semantics</li>
+              <li>No raw owning pointers; the tree owns its widgets</li>
+              <li>Apache License 2.0</li>
+            </ul>
+            <p><a class="button primary" href="docs/">Follow the getting-started guide</a></p>
+          </div>
+<pre><code><span class="k">auto</span> tree = basalt::widget_tree{
+    basalt::make_theme(basalt::color_scheme::light)};
+tree.set_text_shaper(&amp;shaper);
+tree.set_viewport({480, 240});
+
+<span class="k">auto</span> &amp;root = tree.emplace_root&lt;basalt::box&gt;(
+    basalt::axis::vertical);
+<span class="k">auto</span> &amp;status = root.emplace_child&lt;basalt::label&gt;(<span class="c">"Clicks: 0"</span>);
+<span class="k">auto</span> &amp;press  = root.emplace_child&lt;basalt::button&gt;(
+    <span class="c">"Count a click"</span>);
+press.set_variant(basalt::button_variant::primary);
+
+<span class="c">// Each frame: layout, damage, paint.</span>
+tree.update_layout();
+tree.take_damage();
+basalt::paint_tree(tree, commands);</code></pre>
+        </div>
+      </div>
+    </section>
+
+    <section id="start">
+      <div class="wrap">
+        <h2>Get started</h2>
+        <p class="section-lead">Read the guide, or go to the source.</p>
+        <div class="actions" style="justify-content:flex-start">
+          <a class="button primary" href="docs/">Documentation</a>
+          <a class="button" href="https://github.com/nadiasvertex/basalt">GitHub repository</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site">
+    <div class="wrap">
+      <div>
+        <a href="docs/">Documentation</a>
+        <a href="https://github.com/nadiasvertex/basalt">GitHub</a>
+        <a href="https://github.com/nadiasvertex/basalt/releases">Releases</a>
+      </div>
+      <div>Basalt is released under the Apache License 2.0.</div>
+    </div>
+  </footer>
+</body>
+</html>
