@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/basalt-logo-light.png" alt="Basalt logo" width="240">
+</p>
+
 # Basalt
 
 Basalt is a C++23 widget library that follows the Cubit design system. It provides a widget tree

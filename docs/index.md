@@ -1,5 +1,7 @@
 # Overview
 
+![Basalt logo](basalt-logo-light.png)
+
 Basalt is a C++23 widget library. It follows the Cubit design system. Basalt turns a widget tree
 into paint commands and accessibility snapshots. Your application supplies the window, the
 renderer, and the input events.
