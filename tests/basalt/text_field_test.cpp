@@ -386,3 +386,145 @@ TEST_CASE("composition in a later block shifts only that line", "[text_field]") 
   REQUIRE(f.field->text() == "a\nbbw");
   f.f.tree.set_text_shaper(nullptr);
 }
+
+namespace {
+
+struct commit_fixture : fixture {
+  commit_fixture() : fixture("ab") {
+    other = &root->emplace_child<text_field>("other");
+    f.layout();
+    field->set_on_submit([this](std::string const &v) { events.push_back("submit:" + v); });
+    field->set_on_focus_lost([this](std::string const &v) { events.push_back("lost:" + v); });
+    field->set_on_cancel([this] { events.push_back("cancel"); });
+  }
+
+  text_field *other = nullptr;
+  std::vector<std::string> events;
+};
+
+} // namespace
+
+TEST_CASE("focus loss after an edit calls the handler once with the text", "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  REQUIRE(f.field->has_unconfirmed_edit());
+  REQUIRE(f.f.tap(key::tab));
+  REQUIRE(f.events == std::vector<std::string>{"lost:abc"});
+  REQUIRE_FALSE(f.field->has_unconfirmed_edit());
+}
+
+TEST_CASE("focus loss without an edit makes no call", "[text_field]") {
+  commit_fixture f;
+  f.f.tap(key::tab);
+  REQUIRE(f.events.empty());
+}
+
+TEST_CASE("enter confirms the edit so focus loss makes no second call", "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  f.f.tap(key::enter);
+  f.f.tap(key::tab);
+  REQUIRE(f.events == std::vector<std::string>{"submit:abc"});
+}
+
+TEST_CASE("focus moved by a call, a hidden field or a modal also reports the edit",
+          "[text_field]") {
+  SECTION("a call") {
+    commit_fixture f;
+    f.f.type("c");
+    f.other->request_focus();
+    REQUIRE(f.events == std::vector<std::string>{"lost:abc"});
+  }
+  SECTION("hiding the field") {
+    commit_fixture f;
+    f.f.type("c");
+    f.field->set_visible(false);
+    REQUIRE(f.events == std::vector<std::string>{"lost:abc"});
+  }
+  SECTION("a modal") {
+    commit_fixture f;
+    auto &dialog = f.root->emplace_child<box>(axis::vertical);
+    dialog.emplace_child<text_field>("inner");
+    f.f.layout();
+    f.f.type("c");
+    REQUIRE(f.f.tree.focus().push_modal(dialog));
+    REQUIRE(f.events == std::vector<std::string>{"lost:abc"});
+  }
+}
+
+TEST_CASE("an inactive window keeps the edit pending", "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  REQUIRE(f.f.router.dispatch(window_event{.action = window_action::focus_lost}));
+  REQUIRE(f.events.empty());
+  REQUIRE(f.field->has_unconfirmed_edit());
+  f.f.router.dispatch(window_event{.action = window_action::focus_gained});
+  f.f.tap(key::tab);
+  REQUIRE(f.events == std::vector<std::string>{"lost:abc"});
+}
+
+TEST_CASE("a field removed from the tree makes no focus-loss call", "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  auto removed = f.root->remove_child(*f.field);
+  REQUIRE(f.events.empty());
+  REQUIRE(removed != nullptr);
+  REQUIRE(removed->has_focus() == false);
+}
+
+TEST_CASE("set_text ends the unconfirmed edit and an assistive set_value starts one",
+          "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  f.field->set_text("new");
+  REQUIRE_FALSE(f.field->has_unconfirmed_edit());
+  f.f.tap(key::tab);
+  REQUIRE(f.events.empty());
+
+  f.field->request_focus();
+  a11y::action_request set{a11y::action::set_value};
+  set.text = "bye";
+  REQUIRE(a11y::perform_action(f.f.tree, f.field->id(), set));
+  REQUIRE(f.field->has_unconfirmed_edit());
+}
+
+TEST_CASE("escape calls the cancel handler and is consumed", "[text_field]") {
+  commit_fixture f;
+  f.f.type("c");
+  REQUIRE(f.f.tap(key::escape));
+  REQUIRE(f.events == std::vector<std::string>{"cancel"});
+  REQUIRE_FALSE(f.field->has_unconfirmed_edit());
+  f.f.tap(key::tab);
+  REQUIRE(f.events == std::vector<std::string>{"cancel"});
+}
+
+TEST_CASE("escape without a cancel handler is not consumed", "[text_field]") {
+  fixture f("ab");
+  REQUIRE_FALSE(f.f.tap(key::escape));
+}
+
+TEST_CASE("escape during composition goes to the input method", "[text_field]") {
+  commit_fixture f;
+  f.f.send(ime_event{.text = "x"});
+  REQUIRE_FALSE(f.f.tap(key::escape));
+  REQUIRE(f.events.empty());
+}
+
+TEST_CASE("a read-only field reports no edit", "[text_field]") {
+  commit_fixture f;
+  f.field->set_read_only(true);
+  f.f.type("c");
+  f.f.tap(key::tab);
+  REQUIRE(f.events.empty());
+}
+
+TEST_CASE("a focus-lost handler may remove the field", "[text_field]") {
+  commit_fixture f;
+  std::unique_ptr<widget> removed;
+  f.field->set_on_focus_lost([&](std::string const &) {
+    removed = f.root->remove_child(*f.field);
+  });
+  f.f.type("c");
+  f.f.tap(key::tab);
+  REQUIRE(removed != nullptr);
+}

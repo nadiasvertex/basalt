@@ -105,6 +105,18 @@ public:
   auto set_on_submit(std::function<void(std::string const &)> handler) -> void {
     on_submit_ = std::move(handler);
   }
+  // Called with the text when the field loses focus after a user edit that Enter has not
+  // confirmed. It is not called when the window becomes inactive, or when the field leaves the
+  // tree: an owner that removes a field must check `has_unconfirmed_edit` and commit first.
+  auto set_on_focus_lost(std::function<void(std::string const &)> handler) -> void {
+    on_focus_lost_ = std::move(handler);
+  }
+  // Called when Escape is pressed outside input method composition. While it is set, the field
+  // consumes Escape; without it, Escape goes on to the parent as before.
+  auto set_on_cancel(std::function<void()> handler) -> void { on_cancel_ = std::move(handler); }
+  // True after a user edit that Enter, Escape, `set_text` or a focus-lost call has not yet
+  // ended.
+  [[nodiscard]] auto has_unconfirmed_edit() const -> bool { return unconfirmed_edit_; }
 
   [[nodiscard]] auto accessibility_info() const -> accessibility::info override;
 
@@ -181,6 +193,9 @@ private:
   text_clipboard clipboard_;
   std::function<void(std::string const &)> on_change_;
   std::function<void(std::string const &)> on_submit_;
+  std::function<void(std::string const &)> on_focus_lost_;
+  std::function<void()> on_cancel_;
+  bool unconfirmed_edit_ = false;
   mutable cache cache_;
   mutable std::vector<std::size_t> boundaries_;
   mutable bool boundaries_valid_ = false;

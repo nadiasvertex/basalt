@@ -37,6 +37,29 @@ The caret moves by grapheme. Alt or Ctrl moves it by word. Shift extends the sel
 shows input method composition in place, with an underline. The field has no undo. Keep the
 history in your editor.
 
+### Commit a value
+
+Use these handlers for a field that has no confirm button.
+
+- `set_on_focus_lost` calls its handler with the text when the field loses focus after an edit
+  that Enter did not confirm. Focus moves away when the user presses Tab, clicks another widget,
+  or hides the field, or when a modal opens.
+- `set_on_cancel` calls its handler when the user presses Escape. Usually the handler calls
+  `set_text` with the stored value. While you set this handler, the field takes the Escape key. A
+  dialog that contains the field does not close on Escape until focus leaves the field. During
+  input method composition, Escape goes to the input method and the handler is not called.
+- `has_unconfirmed_edit()` is true after an edit that Enter, Escape, `set_text` or a focus-lost
+  call has not ended.
+
+The field does not call the focus-lost handler in these cases:
+
+- The window becomes inactive. The field keeps its focus and its edit.
+- The field leaves the widget tree. Before you remove a field, read `has_unconfirmed_edit()` and
+  commit the text yourself.
+- The field is read-only.
+
+A handler can remove the field from the tree.
+
 ### Example
 
 The program `examples/widgets/text_field.cpp` makes a single-line field and a read-only multi-line field. It clicks the first field, types a name and presses Enter.

@@ -320,6 +320,7 @@ auto text_field::set_text(std::string text) -> void {
   if (text == text_ && preedit_.empty()) {
     return;
   }
+  unconfirmed_edit_ = false;
   edit_layout(0, text_.size(), text);
   text_ = std::move(text);
   boundaries_valid_ = false;
@@ -434,6 +435,7 @@ auto text_field::notify_change() -> void {
 
 auto text_field::replace_range(std::size_t begin, std::size_t end, std::string_view replacement)
     -> void {
+  unconfirmed_edit_ = true;
   edit_layout(begin, end, replacement);
   text_.replace(begin, end - begin, replacement);
   boundaries_valid_ = false;
@@ -590,12 +592,23 @@ auto text_field::handle_key(key_event const &k) -> bool {
       return insert_text("\n");
     }
     if (on_submit_) {
+      unconfirmed_edit_ = false;
       auto const handler = on_submit_;
       auto const value = text_;
       handler(value);
       return true;
     }
     return false;
+  case key::escape:
+    if (!on_cancel_ || !preedit_.empty()) {
+      return false;
+    }
+    {
+      unconfirmed_edit_ = false;
+      auto const handler = on_cancel_;
+      handler();
+    }
+    return true;
   case key::a:
     if (!shortcut) {
       return false;
@@ -729,6 +742,14 @@ auto text_field::on_interaction_changed(interaction_state const &previous) -> vo
   if (previous.focused && !interaction().focused) {
     dragging_ = false;
     set_preedit({});
+    if (unconfirmed_edit_) {
+      unconfirmed_edit_ = false;
+      if (on_focus_lost_) {
+        auto const handler = on_focus_lost_;
+        auto const value = text_;
+        handler(value);
+      }
+    }
   }
 }
 
