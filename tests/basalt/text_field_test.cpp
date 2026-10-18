@@ -521,9 +521,8 @@ TEST_CASE("a read-only field reports no edit", "[text_field]") {
 TEST_CASE("a focus-lost handler may remove the field", "[text_field]") {
   commit_fixture f;
   std::unique_ptr<widget> removed;
-  f.field->set_on_focus_lost([&](std::string const &) {
-    removed = f.root->remove_child(*f.field);
-  });
+  f.field->set_on_focus_lost(
+      [&](std::string const &) { removed = f.root->remove_child(*f.field); });
   f.f.type("c");
   f.f.tap(key::tab);
   REQUIRE(removed != nullptr);
