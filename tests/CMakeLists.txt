@@ -44,6 +44,7 @@ add_executable(basalt_tests
   basalt/popover_test.cpp
   basalt/progress_bar_test.cpp
   basalt/tooltip_test.cpp
+  basalt/tree_view_test.cpp
   basalt/uploader_test.cpp
   basalt/text/bidi_test.cpp
   basalt/text/font_manager_test.cpp

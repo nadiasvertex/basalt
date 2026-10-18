@@ -77,6 +77,7 @@ system for this work, as `examples/sdl_skia` shows.
 | [Text field](text_field.md) | Editable text | `text_field` |
 | [Toggle](toggle.md) | An on/off switch | `toggle` |
 | [Tooltip](tooltip.md) | A short hint | `tooltip`, `tooltip_anchor` |
+| [Tree view](tree_view.md) | Nested rows that expand and collapse | `tree_view` |
 | [Uploader](uploader.md) | Files from a dialog or a drop | `uploader` |
 
 ## Shared parts

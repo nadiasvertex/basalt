@@ -34,6 +34,17 @@ inline auto draw_chevron(render_context &context, rect area, bool pointing_down,
   context.line(detail::at(area, 0.5f, tip), detail::at(area, 0.75f, ends), color, width);
 }
 
+// A tree row's mark: it points to the end of the line when collapsed and down when expanded.
+inline auto draw_disclosure(render_context &context, rect area, bool expanded, rgba color,
+                            float width) -> void {
+  if (expanded) {
+    draw_chevron(context, area, true, color, width);
+    return;
+  }
+  context.line(detail::at(area, 0.35f, 0.25f), detail::at(area, 0.65f, 0.5f), color, width);
+  context.line(detail::at(area, 0.65f, 0.5f), detail::at(area, 0.35f, 0.75f), color, width);
+}
+
 inline auto draw_close(render_context &context, rect area, rgba color, float width) -> void {
   context.line(detail::at(area, 0.3f, 0.3f), detail::at(area, 0.7f, 0.7f), color, width);
   context.line(detail::at(area, 0.7f, 0.3f), detail::at(area, 0.3f, 0.7f), color, width);

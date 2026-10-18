@@ -76,6 +76,7 @@ set(WIDGET_EXAMPLES
   text_field
   toggle
   tooltip
+  tree_view
   uploader
 )
 
