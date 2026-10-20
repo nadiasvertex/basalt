@@ -55,6 +55,7 @@ add_library(basalt STATIC
   basalt/widgets/avatar.cpp
   basalt/widgets/navigation_bar.cpp
   basalt/widgets/popover.cpp
+  basalt/widgets/combo_box.cpp
   basalt/widgets/select.cpp
   basalt/widgets/tooltip.cpp
   basalt/widgets/uploader.cpp)

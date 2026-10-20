@@ -40,6 +40,7 @@
 #include "basalt/widgets/checkbox.h"
 #include "basalt/widgets/chip.h"
 #include "basalt/widgets/choice_control.h"
+#include "basalt/widgets/combo_box.h"
 #include "basalt/widgets/control_size.h"
 #include "basalt/widgets/diagnostics_list.h"
 #include "basalt/widgets/dialog.h"

@@ -29,6 +29,7 @@ add_executable(basalt_tests
   basalt/radio_button_test.cpp
   basalt/field_text_test.cpp
   basalt/select_test.cpp
+  basalt/combo_box_test.cpp
   basalt/menu_test.cpp
   basalt/tabs_test.cpp
   basalt/text_field_test.cpp

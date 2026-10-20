@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.25)
-project(basalt VERSION 0.7.1 DESCRIPTION "C++ widget library following the Cubit design system"
+project(basalt VERSION 0.8.0 DESCRIPTION "C++ widget library following the Cubit design system"
   LANGUAGES CXX)
 
 
