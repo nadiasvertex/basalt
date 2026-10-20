@@ -202,3 +202,34 @@ TEST_CASE("the shown value follows the choice, the placeholder and the mode", "[
   REQUIRE(value() == "Pick one of the fruits on offer");
   f.f.tree.set_text_shaper(nullptr);
 }
+
+TEST_CASE("the chevron is painted outside the value's clip", "[select][paint]") {
+  fixture f;
+  int clip_depth = 0;
+  int chevron_lines_unclipped = 0;
+  for (paint_command const &c : f.f.commands()) {
+    if (std::holds_alternative<push_clip_command>(c)) {
+      ++clip_depth;
+    } else if (std::holds_alternative<pop_clip_command>(c)) {
+      --clip_depth;
+    } else if (std::holds_alternative<line_command>(c) && clip_depth == 0) {
+      ++chevron_lines_unclipped;
+    }
+  }
+  REQUIRE(chevron_lines_unclipped == 2);
+}
+
+TEST_CASE("a single select fits its widest option and keeps its width when the choice changes",
+          "[select]") {
+  auto &fonts = basalt::test::bundled_fonts();
+  text::text_shaper shaper{fonts};
+  fixture f;
+  f.f.tree.set_text_shaper(&shaper);
+  f.field->add_option("A considerably longer option");
+  f.f.layout();
+  float const width = f.field->measure({}).width;
+  f.field->choose(0);
+  REQUIRE(f.field->measure({}).width == width);
+  f.field->choose(3);
+  REQUIRE(f.field->measure({}).width == width);
+}

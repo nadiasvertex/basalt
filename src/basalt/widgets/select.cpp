@@ -94,6 +94,13 @@ auto select::parts() const -> layout_parts {
   p.label = field_.label().text().empty() ? basalt::size{} : field_.label().measure(*this);
   p.helper = field_.helper().text().empty() ? basalt::size{} : field_.helper().measure(*this);
   p.value = value_.measure(*this);
+  if (mode_ == select_mode::single) {
+    // Sized for the widest option so that choosing does not resize the field.
+    for (std::string const &option : options_) {
+      text_line candidate(option, value_.role());
+      p.value.width = std::max(p.value.width, candidate.measure(*this).width);
+    }
+  }
   p.inset = resolve(t.sizes.inset_horizontal_input);
   p.mark = resolve(t.sizes.dimension_icon);
   p.label_gap = p.label.height > 0 ? resolve(t.sizes.gap_vertical_field_input) : 0;
@@ -102,7 +109,7 @@ auto select::parts() const -> layout_parts {
   p.field_height = std::max(p.value.height + 2 * resolve(t.sizes.inset_vertical_list_item_text),
                             resolve(t.sizes.dimension_height_element_min));
   float const clear = mode_ == select_mode::multiple && chosen_count_ > 0 ? p.mark : 0;
-  p.field_width = std::max(2 * p.inset + p.value.width + clear + p.mark,
+  p.field_width = std::max(3 * p.inset + p.value.width + clear + p.mark,
                            resolve(t.sizes.dimension_width_popover_min));
   return p;
 }
@@ -404,9 +411,11 @@ auto select::on_paint(render_context &context) const -> void {
   bool const showing_value = chosen_count_ > 0;
   rect const text_area{{p.inset, field.top()},
                        {std::max(0.0f, text_right - p.inset), field.height()}};
-  auto const clip = context.clip(text_area);
-  value_.draw_in(context, *this, text_area,
-                 showing_value ? t.colors.text_default : t.colors.text_subdued);
+  {
+    auto const clip = context.clip(text_area);
+    value_.draw_in(context, *this, text_area,
+                   showing_value ? t.colors.text_default : t.colors.text_subdued);
+  }
 
   float const mark_width = device_stroke_width(fixed(1.5f), scale());
   float const mark_top = field.top() + (field.height() - p.mark) / 2;
