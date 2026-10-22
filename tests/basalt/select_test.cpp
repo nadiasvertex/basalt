@@ -206,13 +206,16 @@ TEST_CASE("the shown value follows the choice, the placeholder and the mode", "[
 TEST_CASE("the chevron is painted outside the value's clip", "[select][paint]") {
   fixture f;
   int clip_depth = 0;
+  int field_depth = -1;
   int chevron_lines_unclipped = 0;
   for (paint_command const &c : f.f.commands()) {
     if (std::holds_alternative<push_clip_command>(c)) {
       ++clip_depth;
     } else if (std::holds_alternative<pop_clip_command>(c)) {
       --clip_depth;
-    } else if (std::holds_alternative<line_command>(c) && clip_depth == 0) {
+    } else if (std::holds_alternative<fill_rounded_rect_command>(c) && field_depth < 0) {
+      field_depth = clip_depth;
+    } else if (std::holds_alternative<line_command>(c) && clip_depth == field_depth) {
       ++chevron_lines_unclipped;
     }
   }
