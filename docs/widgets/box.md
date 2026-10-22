@@ -29,6 +29,13 @@ has these fields:
 Lengths are token lengths. Use `fixed(16)` for 16 token pixels. The display scale and the zoom
 change the result.
 
+### Surface
+
+By default a box paints nothing. `set_surface(box_surface{...})` paints a filled, rounded background
+and a hairline border behind the children. The fill and the border are theme color members, such as
+`&tokens::color_set::background_secondary`, so the surface follows the color scheme. The radius is a
+`length`. `set_surface({})` removes it.
+
 ### Events
 
 A box does not handle input. Its children receive events as usual.

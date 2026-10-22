@@ -34,6 +34,14 @@ inline auto draw_chevron(render_context &context, rect area, bool pointing_down,
   context.line(detail::at(area, 0.5f, tip), detail::at(area, 0.75f, ends), color, width);
 }
 
+inline auto draw_chevron_sideways(render_context &context, rect area, bool pointing_right,
+                                  rgba color, float width) -> void {
+  float const tip = pointing_right ? 0.65f : 0.35f;
+  float const ends = pointing_right ? 0.35f : 0.65f;
+  context.line(detail::at(area, ends, 0.25f), detail::at(area, tip, 0.5f), color, width);
+  context.line(detail::at(area, tip, 0.5f), detail::at(area, ends, 0.75f), color, width);
+}
+
 // A tree row's mark: it points to the end of the line when collapsed and down when expanded.
 inline auto draw_disclosure(render_context &context, rect area, bool expanded, rgba color,
                             float width) -> void {

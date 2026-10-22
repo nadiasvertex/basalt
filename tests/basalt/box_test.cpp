@@ -1,5 +1,7 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include "basalt/render_context.h"
+#include "basalt/widget_painter.h"
 #include "basalt/widget_tree.h"
 #include "basalt/widgets/box.h"
 
@@ -192,4 +194,62 @@ TEST_CASE("a stretched child with a basis is not measured during layout", "[layo
   CHECK(centered.measures > 0);
   CHECK(sized.bounds() == rect{{0, 0}, {150, 100}});
   CHECK(centered.bounds().height() == 10);
+}
+
+namespace {
+
+// The drawing commands, without the clip and transform bookkeeping around them.
+auto drawn(widget_tree const &tree) -> paint_commands {
+  paint_commands all;
+  paint_tree(tree, all);
+  paint_commands out;
+  for (auto const &c : all) {
+    if (std::holds_alternative<fill_rect_command>(c) ||
+        std::holds_alternative<fill_rounded_rect_command>(c) ||
+        std::holds_alternative<stroke_rounded_rect_command>(c)) {
+      out.push_back(c);
+    }
+  }
+  return out;
+}
+
+} // namespace
+
+TEST_CASE("a box without a surface paints no commands of its own", "[paint][box]") {
+  fixture f;
+  f.root->emplace_child<leaf>(size{50, 20});
+  f.tree.update_layout();
+  REQUIRE(drawn(f.tree).empty());
+}
+
+TEST_CASE("a box with a surface paints a rounded fill and stroke before its children",
+          "[paint][box]") {
+  fixture f;
+  f.root->set_surface(box_surface{
+      .fill = &tokens::color_set::background_secondary,
+      .border = &tokens::color_set::border_subdued,
+      .radius = fixed(6),
+  });
+  struct marker : leaf {
+    marker() : leaf(size{50, 20}) {}
+
+  protected:
+    auto on_paint(render_context &context) const -> void override {
+      context.fill_rect({{0, 0}, {5, 5}}, {1, 2, 3, 255});
+    }
+  };
+  f.root->emplace_child<marker>();
+  f.tree.update_layout();
+  paint_commands const commands = drawn(f.tree);
+
+  auto const &colors = f.tree.theme().colors;
+  REQUIRE(commands.size() == 3);
+  auto const *fill = std::get_if<fill_rounded_rect_command>(&commands[0]);
+  REQUIRE(fill != nullptr);
+  REQUIRE(fill->color == colors.background_secondary);
+  REQUIRE(fill->radius == 6);
+  auto const *stroke = std::get_if<stroke_rounded_rect_command>(&commands[1]);
+  REQUIRE(stroke != nullptr);
+  REQUIRE(stroke->color == colors.border_subdued);
+  REQUIRE(std::holds_alternative<fill_rect_command>(commands[2]));
 }

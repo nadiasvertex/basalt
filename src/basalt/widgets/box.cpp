@@ -1,5 +1,7 @@
 #include "basalt/widgets/box.h"
 
+#include "basalt/render_context.h"
+
 #include <algorithm>
 #include <cstddef>
 #include <utility>
@@ -42,6 +44,13 @@ auto box::set_cross_alignment(alignment a) -> void {
   }
 }
 
+auto box::set_surface(std::optional<box_surface> surface) -> void {
+  if (surface != surface_) {
+    surface_ = surface;
+    invalidate_paint();
+  }
+}
+
 auto box::item(widget const &child) const -> box_item {
   auto const it = items_.find(child.id());
   return it == items_.end() ? box_item{} : it->second;
@@ -60,6 +69,19 @@ auto box::set_item(widget const &child, box_item item) -> bool {
 }
 
 auto box::on_child_removed(widget &child) -> void { items_.erase(child.id()); }
+
+auto box::on_paint(render_context &context) const -> void {
+  if (!surface_ || tree() == nullptr) {
+    return;
+  }
+  basalt::theme const &t = theme();
+  rect const area{{}, bounds().extent};
+  float const radius = resolve(surface_->radius);
+  float const width = device_stroke_width(fixed(1), scale());
+  context.fill_rounded_rect(area, radius, t.colors.*surface_->fill);
+  context.stroke_rounded_rect(inset(area, insets::uniform(width / 2)), radius,
+                              t.colors.*surface_->border, width);
+}
 
 auto box::child_limits(float cross_max) const -> constraints {
   return {{}, make_size(direction_, unbounded, cross_max)};

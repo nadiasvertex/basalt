@@ -15,9 +15,30 @@ Create a `tab_bar` with a name. Call `add_tab(label)` for each tab. It returns t
 - `tab_at(index)` and `tab_count()` read the tabs.
 - `tab::set_closable(true)` shows a close button at the end of a tab.
 - `scroll_tab_into_view(index)` scrolls a long row to show a tab.
+- `set_style(tab_bar_style::segmented)` changes the look, as described below.
 
 Tabs shrink toward a minimum width as the row fills. When they no longer fit, the row scrolls
 sideways. The wheel or the trackpad scrolls it. A vertical wheel turns sideways.
+
+### Overflow controls
+
+When the tabs do not fit, the bar shows a fade at each edge that has more tabs past it and a scroll
+button at each end. A scroll button moves the row just far enough to show the next partly hidden
+tab, and repeats while held. If an `overlay_host` is above the bar, a third button opens a menu of
+every tab. Choosing an item selects the tab and scrolls it into view. Without a host, the bar shows
+no menu button.
+
+The buttons paint the bar's background so that no tab shows beneath them. Call
+`set_background(&tokens::color_set::background_secondary)` when the bar sits on a different color.
+The buttons are not Tab stops. Left and Right scroll the row as they select, and Down on a tab opens
+the menu. `scroll_toward_start()`, `scroll_toward_end()` and `open_tab_menu()` do the same from code.
+
+### Segmented style
+
+`set_style(tab_bar_style::segmented)` divides the width equally among the tabs inside a rounded
+group. The bar never scrolls and shows no overflow controls. Labels that do not fit are shortened
+in the middle. Use it for a few options, such as a mode switch. Selection, focus and keyboard
+behavior are the same as in the default `line` style.
 
 ### Events
 
