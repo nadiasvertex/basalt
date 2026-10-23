@@ -192,6 +192,7 @@ bar</a></li>
 <li><a href="#text-field" id="toc-text-field">Text field</a></li>
 <li><a href="#toggle" id="toc-toggle">Toggle</a></li>
 <li><a href="#tooltip" id="toc-tooltip">Tooltip</a></li>
+<li><a href="#tree-view" id="toc-tree-view">Tree view</a></li>
 <li><a href="#uploader" id="toc-uploader">Uploader</a></li>
 </ul></li>
 </ul>
@@ -417,6 +418,11 @@ destroyed.</p>
 <p>The host renderer reads the commands in order. A renderer needs one
 case for each command type. The Skia example in
 <code>examples/common/skia_replay.cpp</code> is a complete renderer.</p>
+<p>To draw a glyph run, a renderer can load the font file from
+<code>font_face::data()</code> into its own font engine. It must then
+apply <code>variation_weight()</code> itself. A renderer without a font
+engine can use <code>font_face::outline</code>. It gives the outline of
+one glyph as a path, with the weight of the face applied.</p>
 <p>Each widget paints inside its own bounds and its own coordinates. The
 tree clips children to the bounds of the parent. A disabled subtree is
 drawn in a layer at the theme’s disabled opacity.</p>
@@ -848,6 +854,11 @@ shows.</p>
 <td><code>tooltip</code>, <code>tooltip_anchor</code></td>
 </tr>
 <tr>
+<td><a href="#tree-view">Tree view</a></td>
+<td>Nested rows that expand and collapse</td>
+<td><code>tree_view</code></td>
+</tr>
+<tr>
 <td><a href="#uploader">Uploader</a></td>
 <td>Files from a dialog or a drop</td>
 <td><code>uploader</code></td>
@@ -1093,6 +1104,14 @@ direction. The default is <code>stretch</code>.</li>
 </table>
 <p>Lengths are token lengths. Use <code>fixed(16)</code> for 16 token
 pixels. The display scale and the zoom change the result.</p>
+<h3 id="surface">Surface</h3>
+<p>By default a box paints nothing.
+<code>set_surface(box_surface{...})</code> paints a filled, rounded
+background and a hairline border behind the children. The fill and the
+border are theme color members, such as
+<code>&amp;tokens::color_set::background_secondary</code>, so the
+surface follows the color scheme. The radius is a <code>length</code>.
+<code>set_surface({})</code> removes it.</p>
 <h3 id="events-2">Events</h3>
 <p>A box does not handle input. Its children receive events as
 usual.</p>
@@ -2574,10 +2593,34 @@ tabs.</li>
 of a tab.</li>
 <li><code>scroll_tab_into_view(index)</code> scrolls a long row to show
 a tab.</li>
+<li><code>set_style(tab_bar_style::segmented)</code> changes the look,
+as described below.</li>
 </ul>
 <p>Tabs shrink toward a minimum width as the row fills. When they no
 longer fit, the row scrolls sideways. The wheel or the trackpad scrolls
 it. A vertical wheel turns sideways.</p>
+<h3 id="overflow-controls">Overflow controls</h3>
+<p>When the tabs do not fit, the bar shows a fade at each edge that has
+more tabs past it and a scroll button at each end. A scroll button moves
+the row just far enough to show the next partly hidden tab, and repeats
+while held. If an <code>overlay_host</code> is above the bar, a third
+button opens a menu of every tab. Choosing an item selects the tab and
+scrolls it into view. Without a host, the bar shows no menu button.</p>
+<p>The buttons paint the bar’s background so that no tab shows beneath
+them. Call
+<code>set_background(&amp;tokens::color_set::background_secondary)</code>
+when the bar sits on a different color. The buttons are not Tab stops.
+Left and Right scroll the row as they select, and Down on a tab opens
+the menu. <code>scroll_toward_start()</code>,
+<code>scroll_toward_end()</code> and <code>open_tab_menu()</code> do the
+same from code.</p>
+<h3 id="segmented-style">Segmented style</h3>
+<p><code>set_style(tab_bar_style::segmented)</code> divides the width
+equally among the tabs inside a rounded group. The bar never scrolls and
+shows no overflow controls. Labels that do not fit are shortened in the
+middle. Use it for a few options, such as a mode switch. Selection,
+focus and keyboard behavior are the same as in the default
+<code>line</code> style.</p>
 <h3 id="events-25">Events</h3>
 <p><code>set_on_select</code> calls its handler with the index of the
 newly selected tab. <code>set_on_close</code> calls its handler with the
@@ -2589,29 +2632,34 @@ Right, Home and End move among the tabs and select as they go.</p>
 <p>The program <code>examples/widgets/tabs.cpp</code> makes a bar with
 three tabs, one of them closable. It clicks the second tab and prints
 the selection.</p>
-<div class="sourceCode" id="cb36"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co">// A tab bar. A simulated click selects the second tab.</span></span>
-<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;print&gt;</span></span>
-<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;example_host.h&quot;</span></span>
+<div class="sourceCode" id="cb36"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a><span class="co">// A tab bar with more tabs than fit. It shows the scroll buttons, and a simulated click on the</span></span>
+<span id="cb36-2"><a href="#cb36-2" aria-hidden="true" tabindex="-1"></a><span class="co">// trailing button scrolls the row.</span></span>
+<span id="cb36-3"><a href="#cb36-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-4"><a href="#cb36-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;print&gt;</span></span>
+<span id="cb36-5"><a href="#cb36-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;string&gt;</span></span>
 <span id="cb36-6"><a href="#cb36-6" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">int</span> <span class="op">{</span></span>
-<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> host <span class="op">=</span> example<span class="op">::</span>example_host<span class="op">{{</span><span class="dv">420</span><span class="op">,</span> <span class="dv">72</span><span class="op">}};</span></span>
-<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> <span class="op">&amp;</span>sections <span class="op">=</span> host<span class="op">.</span>content<span class="op">().</span>emplace_child<span class="op">&lt;</span>basalt<span class="op">::</span>tab_bar<span class="op">&gt;(</span><span class="st">&quot;Sections&quot;</span><span class="op">);</span></span>
-<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>add_tab<span class="op">(</span><span class="st">&quot;Overview&quot;</span><span class="op">);</span></span>
-<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>add_tab<span class="op">(</span><span class="st">&quot;Activity&quot;</span><span class="op">);</span></span>
-<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>add_tab<span class="op">(</span><span class="st">&quot;Settings&quot;</span><span class="op">).</span>set_closable<span class="op">(</span><span class="kw">true</span><span class="op">);</span></span>
-<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>select<span class="op">(</span><span class="dv">0</span><span class="op">);</span></span>
-<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>set_on_select<span class="op">([](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Tab </span><span class="sc">{}</span><span class="st"> is selected.&quot;</span><span class="op">,</span> index<span class="op">);</span> <span class="op">});</span></span>
-<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>set_on_close<span class="op">([](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Tab </span><span class="sc">{}</span><span class="st"> asked to close.&quot;</span><span class="op">,</span> index<span class="op">);</span> <span class="op">});</span></span>
-<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>content<span class="op">().</span>set_cross_alignment<span class="op">(</span>basalt<span class="op">::</span>alignment<span class="op">::</span>stretch<span class="op">);</span></span>
-<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
-<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>click<span class="op">(</span>sections<span class="op">.</span>tab_at<span class="op">(</span><span class="dv">1</span><span class="op">));</span></span>
-<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
-<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<span id="cb36-7"><a href="#cb36-7" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;example_host.h&quot;</span></span>
+<span id="cb36-8"><a href="#cb36-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-9"><a href="#cb36-9" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">int</span> <span class="op">{</span></span>
+<span id="cb36-10"><a href="#cb36-10" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> host <span class="op">=</span> example<span class="op">::</span>example_host<span class="op">{{</span><span class="dv">420</span><span class="op">,</span> <span class="dv">72</span><span class="op">}};</span></span>
+<span id="cb36-11"><a href="#cb36-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-12"><a href="#cb36-12" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> <span class="op">&amp;</span>sections <span class="op">=</span> host<span class="op">.</span>content<span class="op">().</span>emplace_child<span class="op">&lt;</span>basalt<span class="op">::</span>tab_bar<span class="op">&gt;(</span><span class="st">&quot;Sections&quot;</span><span class="op">);</span></span>
+<span id="cb36-13"><a href="#cb36-13" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> <span class="op">(</span><span class="dt">int</span> i <span class="op">=</span> <span class="dv">1</span><span class="op">;</span> i <span class="op">&lt;=</span> <span class="dv">8</span><span class="op">;</span> <span class="op">++</span>i<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb36-14"><a href="#cb36-14" aria-hidden="true" tabindex="-1"></a>    sections<span class="op">.</span>add_tab<span class="op">(</span><span class="st">&quot;Section &quot;</span> <span class="op">+</span> <span class="bu">std::</span>to_string<span class="op">(</span>i<span class="op">)).</span>set_closable<span class="op">(</span>i <span class="op">==</span> <span class="dv">8</span><span class="op">);</span></span>
+<span id="cb36-15"><a href="#cb36-15" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb36-16"><a href="#cb36-16" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>select<span class="op">(</span><span class="dv">0</span><span class="op">);</span></span>
+<span id="cb36-17"><a href="#cb36-17" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>set_on_select<span class="op">([](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Tab </span><span class="sc">{}</span><span class="st"> is selected.&quot;</span><span class="op">,</span> index<span class="op">);</span> <span class="op">});</span></span>
+<span id="cb36-18"><a href="#cb36-18" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>set_on_close<span class="op">([](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Tab </span><span class="sc">{}</span><span class="st"> asked to close.&quot;</span><span class="op">,</span> index<span class="op">);</span> <span class="op">});</span></span>
+<span id="cb36-19"><a href="#cb36-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-20"><a href="#cb36-20" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>content<span class="op">().</span>set_cross_alignment<span class="op">(</span>basalt<span class="op">::</span>alignment<span class="op">::</span>stretch<span class="op">);</span></span>
+<span id="cb36-21"><a href="#cb36-21" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
+<span id="cb36-22"><a href="#cb36-22" aria-hidden="true" tabindex="-1"></a>  sections<span class="op">.</span>scroll_toward_end<span class="op">();</span></span>
+<span id="cb36-23"><a href="#cb36-23" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
+<span id="cb36-24"><a href="#cb36-24" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;The row is scrolled </span><span class="sc">{}</span><span class="st"> pixels of </span><span class="sc">{}</span><span class="st">.&quot;</span><span class="op">,</span> sections<span class="op">.</span>scroll_offset<span class="op">(),</span></span>
+<span id="cb36-25"><a href="#cb36-25" aria-hidden="true" tabindex="-1"></a>               sections<span class="op">.</span>max_scroll_offset<span class="op">());</span></span>
+<span id="cb36-26"><a href="#cb36-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb36-27"><a href="#cb36-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
+<span id="cb36-28"><a href="#cb36-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <h2 id="text-field">Text field</h2>
 <p>A text field is editable text for dialogs, search boxes and other
 short input. It has a single-line form and a multi-line form.</p>
@@ -2662,6 +2710,32 @@ view.</p>
 extends the selection. The field shows input method composition in
 place, with an underline. The field has no undo. Keep the history in
 your editor.</p>
+<h3 id="commit-a-value">Commit a value</h3>
+<p>Use these handlers for a field that has no confirm button.</p>
+<ul>
+<li><code>set_on_focus_lost</code> calls its handler with the text when
+the field loses focus after an edit that Enter did not confirm. Focus
+moves away when the user presses Tab, clicks another widget, or hides
+the field, or when a modal opens.</li>
+<li><code>set_on_cancel</code> calls its handler when the user presses
+Escape. Usually the handler calls <code>set_text</code> with the stored
+value. While you set this handler, the field takes the Escape key. A
+dialog that contains the field does not close on Escape until focus
+leaves the field. During input method composition, Escape goes to the
+input method and the handler is not called.</li>
+<li><code>has_unconfirmed_edit()</code> is true after an edit that
+Enter, Escape, <code>set_text</code> or a focus-lost call has not
+ended.</li>
+</ul>
+<p>The field does not call the focus-lost handler in these cases:</p>
+<ul>
+<li>The window becomes inactive. The field keeps its focus and its
+edit.</li>
+<li>The field leaves the widget tree. Before you remove a field, read
+<code>has_unconfirmed_edit()</code> and commit the text yourself.</li>
+<li>The field is read-only.</li>
+</ul>
+<p>A handler can remove the field from the tree.</p>
 <h3 id="example-26">Example</h3>
 <p>The program <code>examples/widgets/text_field.cpp</code> makes a
 single-line field and a read-only multi-line field. It clicks the first
@@ -2799,6 +2873,167 @@ below a button with a hover popup and prints that it is visible.</p>
 <span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
 <span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<h2 id="tree-view">Tree view</h2>
+<p>A tree view shows nested rows that the user can expand and collapse.
+Use it for an outline, a folder tree or any other hierarchy. The tree
+makes widgets only for the rows that you can see. Thus a tree with many
+thousands of rows costs about the same as a tree with a few rows.</p>
+<figure>
+<img role="img" aria-label="A tree of folders and files with one row selected" src="../images/widgets/tree_view.png" alt="A tree of folders and files with one row selected" />
+<figcaption aria-hidden="true">A tree of folders and files with one row
+selected</figcaption>
+</figure>
+<h3 id="create-and-configure-29">Create and configure</h3>
+<p>Create a <code>tree_view</code> with an accessible name. Call
+<code>set_rows</code> with a <code>tree_rows</code> value. It holds two
+functions: <code>count</code> gives the number of rows, and
+<code>row</code> gives the <code>tree_row</code> at an index. The rows
+are the visible rows in display order. The descendants of a collapsed
+row are not rows.</p>
+<p>A <code>tree_row</code> has these fields:</p>
+<ul>
+<li><code>text</code>: the label of the row.</li>
+<li><code>detail</code>: secondary text. The tree shows it at the end of
+the row in a subdued color.</li>
+<li><code>depth</code>: 0 for a top-level row.</li>
+<li><code>expandable</code> and <code>expanded</code>: whether the row
+has a chevron, and which way it points.</li>
+<li><code>position_in_set</code> and <code>set_size</code>: the position
+of the row among its siblings, and their count. Assistive technology
+uses them. Set them when you know them, because the tree cannot count
+rows that it did not make.</li>
+</ul>
+<p><code>tree_rows</code> has a third, optional function,
+<code>depth</code>. It gives the depth of a row without its text. The
+tree uses it when it walks over many rows, for example to find the
+parent of a row.</p>
+<p>The tree keeps no copy of your data. When the data changes, call
+<code>rows_changed()</code>.</p>
+<ul>
+<li><code>select(index)</code> selects a row, and
+<code>select(std::nullopt)</code> clears the selection. The tree does
+not scroll, and it does not take focus. If focus is in the tree, focus
+moves to the new row.</li>
+<li><code>selected()</code> gives the selected row.</li>
+<li><code>scroll_to_row(index)</code> scrolls as little as possible to
+show the row.</li>
+<li><code>row_area(index)</code> gives the area of a row in the
+coordinates of the tree.</li>
+</ul>
+<p>The tree has no natural width. Give it a width with its layout, for
+example with <code>set_cross_alignment(alignment::stretch)</code> on the
+parent box. Give it a limited height, because it scrolls only when its
+rows are taller than the tree.</p>
+<h3 id="events-29">Events</h3>
+<p>Your program owns the expanded state. When the user asks to expand or
+collapse a row, the tree calls the handler from
+<code>set_on_expand</code> with the row index and the new state. The
+handler must change the data and call <code>rows_changed()</code>. The
+selection moves with the change: a row below the subtree keeps its
+selection, and a hidden row gives its selection to the collapsed
+row.</p>
+<p>The rows are one Tab stop. These keys move the selection and call the
+handler from <code>set_on_select</code>:</p>
+<ul>
+<li>Up and Down move one row. Page Up and Page Down move one page. Home
+and End move to the first and last rows.</li>
+<li>Right expands a collapsed row. On an expanded row, Right moves to
+the first child.</li>
+<li>Left collapses an expanded row. On another row, Left moves to the
+parent.</li>
+<li>Typed text moves to the next row whose text starts with that text.
+After a pause of one second, a new search starts.</li>
+</ul>
+<p>A click selects a row. A click on the chevron also expands or
+collapses the row. Enter and a double click call the handler from
+<code>set_on_activate</code>.</p>
+<h3 id="example-29">Example</h3>
+<p>The program <code>examples/widgets/tree_view.cpp</code> shows a tree
+of folders and files. It moves to the <code>docs</code> row, expands it,
+selects the file in it and opens the file.</p>
+<div class="sourceCode" id="cb40"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co">// A tree of folders and files. The program owns the expanded state, and the tree asks it for the</span></span>
+<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co">// rows it shows.</span></span>
+<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;cstddef&gt;</span></span>
+<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;cstdint&gt;</span></span>
+<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;print&gt;</span></span>
+<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;string&gt;</span></span>
+<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;vector&gt;</span></span>
+<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;example_host.h&quot;</span></span>
+<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a><span class="kw">namespace</span> <span class="op">{</span></span>
+<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a><span class="kw">struct</span> entry <span class="op">{</span></span>
+<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>string name<span class="op">;</span></span>
+<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>uint32_t depth <span class="op">=</span> <span class="dv">0</span><span class="op">;</span></span>
+<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>  <span class="dt">bool</span> expanded <span class="op">=</span> <span class="kw">false</span><span class="op">;</span></span>
+<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a><span class="co">// The entries in pre-order.</span></span>
+<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a><span class="bu">std::</span>vector<span class="op">&lt;</span>entry<span class="op">&gt;</span> entries<span class="op">{</span></span>
+<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>    <span class="op">{</span><span class="st">&quot;src&quot;</span><span class="op">,</span> <span class="dv">0</span><span class="op">,</span> <span class="kw">true</span><span class="op">},</span> <span class="op">{</span><span class="st">&quot;main.cpp&quot;</span><span class="op">,</span> <span class="dv">1</span><span class="op">},</span> <span class="op">{</span><span class="st">&quot;tree.cpp&quot;</span><span class="op">,</span> <span class="dv">1</span><span class="op">},</span></span>
+<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>    <span class="op">{</span><span class="st">&quot;docs&quot;</span><span class="op">,</span> <span class="dv">0</span><span class="op">},</span>      <span class="op">{</span><span class="st">&quot;guide.md&quot;</span><span class="op">,</span> <span class="dv">1</span><span class="op">},</span> <span class="op">{</span><span class="st">&quot;README.md&quot;</span><span class="op">,</span> <span class="dv">0</span><span class="op">},</span></span>
+<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a><span class="op">};</span></span>
+<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> has_children<span class="op">(</span><span class="bu">std::</span>size_t i<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">bool</span> <span class="op">{</span></span>
+<span id="cb40-27"><a href="#cb40-27" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> i <span class="op">+</span> <span class="dv">1</span> <span class="op">&lt;</span> entries<span class="op">.</span>size<span class="op">()</span> <span class="op">&amp;&amp;</span> entries<span class="op">[</span>i <span class="op">+</span> <span class="dv">1</span><span class="op">].</span>depth <span class="op">&gt;</span> entries<span class="op">[</span>i<span class="op">].</span>depth<span class="op">;</span></span>
+<span id="cb40-28"><a href="#cb40-28" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb40-29"><a href="#cb40-29" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-30"><a href="#cb40-30" aria-hidden="true" tabindex="-1"></a><span class="co">// The entry behind each row. A collapsed entry hides its descendants.</span></span>
+<span id="cb40-31"><a href="#cb40-31" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> shown<span class="op">()</span> <span class="op">-&gt;</span> <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="bu">std::</span>size_t<span class="op">&gt;</span> <span class="op">{</span></span>
+<span id="cb40-32"><a href="#cb40-32" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>vector<span class="op">&lt;</span><span class="bu">std::</span>size_t<span class="op">&gt;</span> rows<span class="op">;</span></span>
+<span id="cb40-33"><a href="#cb40-33" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> <span class="op">(</span><span class="bu">std::</span>size_t i <span class="op">=</span> <span class="dv">0</span><span class="op">;</span> i <span class="op">&lt;</span> entries<span class="op">.</span>size<span class="op">();)</span> <span class="op">{</span></span>
+<span id="cb40-34"><a href="#cb40-34" aria-hidden="true" tabindex="-1"></a>    rows<span class="op">.</span>push_back<span class="op">(</span>i<span class="op">);</span></span>
+<span id="cb40-35"><a href="#cb40-35" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>size_t next <span class="op">=</span> i <span class="op">+</span> <span class="dv">1</span><span class="op">;</span></span>
+<span id="cb40-36"><a href="#cb40-36" aria-hidden="true" tabindex="-1"></a>    <span class="cf">while</span> <span class="op">(!</span>entries<span class="op">[</span>i<span class="op">].</span>expanded <span class="op">&amp;&amp;</span> next <span class="op">&lt;</span> entries<span class="op">.</span>size<span class="op">()</span> <span class="op">&amp;&amp;</span></span>
+<span id="cb40-37"><a href="#cb40-37" aria-hidden="true" tabindex="-1"></a>           entries<span class="op">[</span>next<span class="op">].</span>depth <span class="op">&gt;</span> entries<span class="op">[</span>i<span class="op">].</span>depth<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb40-38"><a href="#cb40-38" aria-hidden="true" tabindex="-1"></a>      <span class="op">++</span>next<span class="op">;</span></span>
+<span id="cb40-39"><a href="#cb40-39" aria-hidden="true" tabindex="-1"></a>    <span class="op">}</span></span>
+<span id="cb40-40"><a href="#cb40-40" aria-hidden="true" tabindex="-1"></a>    i <span class="op">=</span> next<span class="op">;</span></span>
+<span id="cb40-41"><a href="#cb40-41" aria-hidden="true" tabindex="-1"></a>  <span class="op">}</span></span>
+<span id="cb40-42"><a href="#cb40-42" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> rows<span class="op">;</span></span>
+<span id="cb40-43"><a href="#cb40-43" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span>
+<span id="cb40-44"><a href="#cb40-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-45"><a href="#cb40-45" aria-hidden="true" tabindex="-1"></a><span class="op">}</span> <span class="co">// namespace</span></span>
+<span id="cb40-46"><a href="#cb40-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-47"><a href="#cb40-47" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">int</span> <span class="op">{</span></span>
+<span id="cb40-48"><a href="#cb40-48" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> host <span class="op">=</span> example<span class="op">::</span>example_host<span class="op">{{</span><span class="dv">240</span><span class="op">,</span> <span class="dv">180</span><span class="op">}};</span></span>
+<span id="cb40-49"><a href="#cb40-49" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>content<span class="op">().</span>set_cross_alignment<span class="op">(</span>basalt<span class="op">::</span>alignment<span class="op">::</span>stretch<span class="op">);</span></span>
+<span id="cb40-50"><a href="#cb40-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-51"><a href="#cb40-51" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> <span class="op">&amp;</span>tree <span class="op">=</span> host<span class="op">.</span>content<span class="op">().</span>emplace_child<span class="op">&lt;</span>basalt<span class="op">::</span>tree_view<span class="op">&gt;(</span><span class="st">&quot;Files&quot;</span><span class="op">);</span></span>
+<span id="cb40-52"><a href="#cb40-52" aria-hidden="true" tabindex="-1"></a>  tree<span class="op">.</span>set_rows<span class="op">({</span></span>
+<span id="cb40-53"><a href="#cb40-53" aria-hidden="true" tabindex="-1"></a>      <span class="op">.</span>count <span class="op">=</span> <span class="op">[]</span> <span class="op">{</span> <span class="cf">return</span> shown<span class="op">().</span>size<span class="op">();</span> <span class="op">},</span></span>
+<span id="cb40-54"><a href="#cb40-54" aria-hidden="true" tabindex="-1"></a>      <span class="op">.</span>row <span class="op">=</span></span>
+<span id="cb40-55"><a href="#cb40-55" aria-hidden="true" tabindex="-1"></a>          <span class="op">[](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb40-56"><a href="#cb40-56" aria-hidden="true" tabindex="-1"></a>            <span class="bu">std::</span>size_t <span class="at">const</span> i <span class="op">=</span> shown<span class="op">()[</span>index<span class="op">];</span></span>
+<span id="cb40-57"><a href="#cb40-57" aria-hidden="true" tabindex="-1"></a>            <span class="cf">return</span> basalt<span class="op">::</span>tree_row<span class="op">{.</span>text <span class="op">=</span> entries<span class="op">[</span>i<span class="op">].</span>name<span class="op">,</span></span>
+<span id="cb40-58"><a href="#cb40-58" aria-hidden="true" tabindex="-1"></a>                                    <span class="op">.</span>depth <span class="op">=</span> entries<span class="op">[</span>i<span class="op">].</span>depth<span class="op">,</span></span>
+<span id="cb40-59"><a href="#cb40-59" aria-hidden="true" tabindex="-1"></a>                                    <span class="op">.</span>expandable <span class="op">=</span> has_children<span class="op">(</span>i<span class="op">),</span></span>
+<span id="cb40-60"><a href="#cb40-60" aria-hidden="true" tabindex="-1"></a>                                    <span class="op">.</span>expanded <span class="op">=</span> entries<span class="op">[</span>i<span class="op">].</span>expanded<span class="op">};</span></span>
+<span id="cb40-61"><a href="#cb40-61" aria-hidden="true" tabindex="-1"></a>          <span class="op">},</span></span>
+<span id="cb40-62"><a href="#cb40-62" aria-hidden="true" tabindex="-1"></a>      <span class="op">.</span>depth <span class="op">=</span> <span class="op">{},</span></span>
+<span id="cb40-63"><a href="#cb40-63" aria-hidden="true" tabindex="-1"></a>  <span class="op">});</span></span>
+<span id="cb40-64"><a href="#cb40-64" aria-hidden="true" tabindex="-1"></a>  tree<span class="op">.</span>set_on_expand<span class="op">([&amp;</span>tree<span class="op">](</span><span class="bu">std::</span>size_t index<span class="op">,</span> <span class="dt">bool</span> expand<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb40-65"><a href="#cb40-65" aria-hidden="true" tabindex="-1"></a>    entries<span class="op">[</span>shown<span class="op">()[</span>index<span class="op">]].</span>expanded <span class="op">=</span> expand<span class="op">;</span></span>
+<span id="cb40-66"><a href="#cb40-66" aria-hidden="true" tabindex="-1"></a>    tree<span class="op">.</span>rows_changed<span class="op">();</span></span>
+<span id="cb40-67"><a href="#cb40-67" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;</span><span class="sc">{}</span><span class="st"> </span><span class="sc">{}</span><span class="st">.&quot;</span><span class="op">,</span> expand <span class="op">?</span> <span class="st">&quot;Expanded&quot;</span> <span class="op">:</span> <span class="st">&quot;Collapsed&quot;</span><span class="op">,</span> entries<span class="op">[</span>shown<span class="op">()[</span>index<span class="op">]].</span>name<span class="op">);</span></span>
+<span id="cb40-68"><a href="#cb40-68" aria-hidden="true" tabindex="-1"></a>  <span class="op">});</span></span>
+<span id="cb40-69"><a href="#cb40-69" aria-hidden="true" tabindex="-1"></a>  tree<span class="op">.</span>set_on_select<span class="op">(</span></span>
+<span id="cb40-70"><a href="#cb40-70" aria-hidden="true" tabindex="-1"></a>      <span class="op">[](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Selected </span><span class="sc">{}</span><span class="st">.&quot;</span><span class="op">,</span> entries<span class="op">[</span>shown<span class="op">()[</span>index<span class="op">]].</span>name<span class="op">);</span> <span class="op">});</span></span>
+<span id="cb40-71"><a href="#cb40-71" aria-hidden="true" tabindex="-1"></a>  tree<span class="op">.</span>set_on_activate<span class="op">(</span></span>
+<span id="cb40-72"><a href="#cb40-72" aria-hidden="true" tabindex="-1"></a>      <span class="op">[](</span><span class="bu">std::</span>size_t index<span class="op">)</span> <span class="op">{</span> <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;Opened </span><span class="sc">{}</span><span class="st">.&quot;</span><span class="op">,</span> entries<span class="op">[</span>shown<span class="op">()[</span>index<span class="op">]].</span>name<span class="op">);</span> <span class="op">});</span></span>
+<span id="cb40-73"><a href="#cb40-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-74"><a href="#cb40-74" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
+<span id="cb40-75"><a href="#cb40-75" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>tab<span class="op">);</span></span>
+<span id="cb40-76"><a href="#cb40-76" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>end<span class="op">);</span></span>
+<span id="cb40-77"><a href="#cb40-77" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>up<span class="op">);</span></span>
+<span id="cb40-78"><a href="#cb40-78" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>right<span class="op">);</span></span>
+<span id="cb40-79"><a href="#cb40-79" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>down<span class="op">);</span></span>
+<span id="cb40-80"><a href="#cb40-80" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>press_key<span class="op">(</span>basalt<span class="op">::</span>key<span class="op">::</span>enter<span class="op">);</span></span>
+<span id="cb40-81"><a href="#cb40-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb40-82"><a href="#cb40-82" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
+<span id="cb40-83"><a href="#cb40-83" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 <h2 id="uploader">Uploader</h2>
 <p>An uploader collects files from a file dialog or from files that the
 user drops on it. It lists the files as removable chips. It holds paths
@@ -2808,7 +3043,7 @@ only. Your program reads and sends the files.</p>
 <figcaption aria-hidden="true">An uploader with two files and an error
 message</figcaption>
 </figure>
-<h3 id="create-and-configure-29">Create and configure</h3>
+<h3 id="create-and-configure-30">Create and configure</h3>
 <p>Pass a name, an <code>uploader_layout</code> and an
 <code>uploader_behavior</code> to the constructor.</p>
 <table>
@@ -2886,41 +3121,41 @@ empty text clears the error.</li>
 <p>The Select Files button calls the <code>file_dialog</code> of the
 tree. Set it with <code>widget_tree::set_file_dialog</code>. Without a
 dialog, the button does nothing.</p>
-<h3 id="events-29">Events</h3>
+<h3 id="events-30">Events</h3>
 <p><code>set_on_added</code> calls its handler with the paths that the
 uploader took, after it lists them. <code>set_on_removed</code> calls
 its handler with the path of a file that the user removed. While files
 are dragged over the drop zone, <code>dragging()</code> is
 <code>true</code> and the zone shows the drag state.</p>
-<h3 id="example-29">Example</h3>
+<h3 id="example-30">Example</h3>
 <p>The program <code>examples/widgets/uploader.cpp</code> makes an
 uploader that accepts PNG and text files. It adds two accepted files and
 one rejected file, and prints the held files and the error message.</p>
-<div class="sourceCode" id="cb40"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb40-1"><a href="#cb40-1" aria-hidden="true" tabindex="-1"></a><span class="co">// An uploader that accepts PNG and text files. The program adds two accepted files and one rejected</span></span>
-<span id="cb40-2"><a href="#cb40-2" aria-hidden="true" tabindex="-1"></a><span class="co">// file.</span></span>
-<span id="cb40-3"><a href="#cb40-3" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-4"><a href="#cb40-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;print&gt;</span></span>
-<span id="cb40-5"><a href="#cb40-5" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-6"><a href="#cb40-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;example_host.h&quot;</span></span>
-<span id="cb40-7"><a href="#cb40-7" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-8"><a href="#cb40-8" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">int</span> <span class="op">{</span></span>
-<span id="cb40-9"><a href="#cb40-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> host <span class="op">=</span> example<span class="op">::</span>example_host<span class="op">{{</span><span class="dv">420</span><span class="op">,</span> <span class="dv">200</span><span class="op">}};</span></span>
-<span id="cb40-10"><a href="#cb40-10" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-11"><a href="#cb40-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> <span class="op">&amp;</span>files <span class="op">=</span> host<span class="op">.</span>content<span class="op">().</span>emplace_child<span class="op">&lt;</span>basalt<span class="op">::</span>uploader<span class="op">&gt;(</span><span class="st">&quot;Attachments&quot;</span><span class="op">);</span></span>
-<span id="cb40-12"><a href="#cb40-12" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_prompt<span class="op">(</span><span class="st">&quot;Drop files here&quot;</span><span class="op">);</span></span>
-<span id="cb40-13"><a href="#cb40-13" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_accepted_suffixes<span class="op">({</span><span class="st">&quot;.png&quot;</span><span class="op">,</span> <span class="st">&quot;.txt&quot;</span><span class="op">});</span></span>
-<span id="cb40-14"><a href="#cb40-14" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_on_added<span class="op">([](</span><span class="bu">std::</span>vector<span class="op">&lt;</span><span class="bu">std::</span>string<span class="op">&gt;</span> <span class="at">const</span> <span class="op">&amp;</span>paths<span class="op">)</span> <span class="op">{</span></span>
-<span id="cb40-15"><a href="#cb40-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;</span><span class="sc">{}</span><span class="st"> file(s) were added.&quot;</span><span class="op">,</span> paths<span class="op">.</span>size<span class="op">());</span></span>
-<span id="cb40-16"><a href="#cb40-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">});</span></span>
-<span id="cb40-17"><a href="#cb40-17" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>content<span class="op">().</span>set_cross_alignment<span class="op">(</span>basalt<span class="op">::</span>alignment<span class="op">::</span>stretch<span class="op">);</span></span>
-<span id="cb40-18"><a href="#cb40-18" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-19"><a href="#cb40-19" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
-<span id="cb40-20"><a href="#cb40-20" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>add_files<span class="op">({</span><span class="st">&quot;notes.txt&quot;</span><span class="op">,</span> <span class="st">&quot;photo.png&quot;</span><span class="op">,</span> <span class="st">&quot;program.exe&quot;</span><span class="op">});</span></span>
-<span id="cb40-21"><a href="#cb40-21" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
-<span id="cb40-22"><a href="#cb40-22" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;The uploader holds </span><span class="sc">{}</span><span class="st"> file(s).&quot;</span><span class="op">,</span> files<span class="op">.</span>files<span class="op">().</span>size<span class="op">());</span></span>
-<span id="cb40-23"><a href="#cb40-23" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;The error message is </span><span class="sc">\&quot;{}\&quot;</span><span class="st">.&quot;</span><span class="op">,</span> files<span class="op">.</span>error_message<span class="op">());</span></span>
-<span id="cb40-24"><a href="#cb40-24" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb40-25"><a href="#cb40-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
-<span id="cb40-26"><a href="#cb40-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
+<div class="sourceCode" id="cb41"><pre class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a><span class="co">// An uploader that accepts PNG and text files. The program adds two accepted files and one rejected</span></span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a><span class="co">// file.</span></span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-4"><a href="#cb41-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&lt;print&gt;</span></span>
+<span id="cb41-5"><a href="#cb41-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-6"><a href="#cb41-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#include </span><span class="im">&quot;example_host.h&quot;</span></span>
+<span id="cb41-7"><a href="#cb41-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-8"><a href="#cb41-8" aria-hidden="true" tabindex="-1"></a><span class="kw">auto</span> main<span class="op">(</span><span class="dt">int</span> argc<span class="op">,</span> <span class="dt">char</span> <span class="op">**</span>argv<span class="op">)</span> <span class="op">-&gt;</span> <span class="dt">int</span> <span class="op">{</span></span>
+<span id="cb41-9"><a href="#cb41-9" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> host <span class="op">=</span> example<span class="op">::</span>example_host<span class="op">{{</span><span class="dv">420</span><span class="op">,</span> <span class="dv">200</span><span class="op">}};</span></span>
+<span id="cb41-10"><a href="#cb41-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-11"><a href="#cb41-11" aria-hidden="true" tabindex="-1"></a>  <span class="kw">auto</span> <span class="op">&amp;</span>files <span class="op">=</span> host<span class="op">.</span>content<span class="op">().</span>emplace_child<span class="op">&lt;</span>basalt<span class="op">::</span>uploader<span class="op">&gt;(</span><span class="st">&quot;Attachments&quot;</span><span class="op">);</span></span>
+<span id="cb41-12"><a href="#cb41-12" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_prompt<span class="op">(</span><span class="st">&quot;Drop files here&quot;</span><span class="op">);</span></span>
+<span id="cb41-13"><a href="#cb41-13" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_accepted_suffixes<span class="op">({</span><span class="st">&quot;.png&quot;</span><span class="op">,</span> <span class="st">&quot;.txt&quot;</span><span class="op">});</span></span>
+<span id="cb41-14"><a href="#cb41-14" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>set_on_added<span class="op">([](</span><span class="bu">std::</span>vector<span class="op">&lt;</span><span class="bu">std::</span>string<span class="op">&gt;</span> <span class="at">const</span> <span class="op">&amp;</span>paths<span class="op">)</span> <span class="op">{</span></span>
+<span id="cb41-15"><a href="#cb41-15" aria-hidden="true" tabindex="-1"></a>    <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;</span><span class="sc">{}</span><span class="st"> file(s) were added.&quot;</span><span class="op">,</span> paths<span class="op">.</span>size<span class="op">());</span></span>
+<span id="cb41-16"><a href="#cb41-16" aria-hidden="true" tabindex="-1"></a>  <span class="op">});</span></span>
+<span id="cb41-17"><a href="#cb41-17" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>content<span class="op">().</span>set_cross_alignment<span class="op">(</span>basalt<span class="op">::</span>alignment<span class="op">::</span>stretch<span class="op">);</span></span>
+<span id="cb41-18"><a href="#cb41-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-19"><a href="#cb41-19" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
+<span id="cb41-20"><a href="#cb41-20" aria-hidden="true" tabindex="-1"></a>  files<span class="op">.</span>add_files<span class="op">({</span><span class="st">&quot;notes.txt&quot;</span><span class="op">,</span> <span class="st">&quot;photo.png&quot;</span><span class="op">,</span> <span class="st">&quot;program.exe&quot;</span><span class="op">});</span></span>
+<span id="cb41-21"><a href="#cb41-21" aria-hidden="true" tabindex="-1"></a>  host<span class="op">.</span>frame<span class="op">();</span></span>
+<span id="cb41-22"><a href="#cb41-22" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;The uploader holds </span><span class="sc">{}</span><span class="st"> file(s).&quot;</span><span class="op">,</span> files<span class="op">.</span>files<span class="op">().</span>size<span class="op">());</span></span>
+<span id="cb41-23"><a href="#cb41-23" aria-hidden="true" tabindex="-1"></a>  <span class="bu">std::</span>println<span class="op">(</span><span class="st">&quot;The error message is </span><span class="sc">\&quot;{}\&quot;</span><span class="st">.&quot;</span><span class="op">,</span> files<span class="op">.</span>error_message<span class="op">());</span></span>
+<span id="cb41-24"><a href="#cb41-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb41-25"><a href="#cb41-25" aria-hidden="true" tabindex="-1"></a>  <span class="cf">return</span> host<span class="op">.</span>finish<span class="op">(</span>argc<span class="op">,</span> argv<span class="op">);</span></span>
+<span id="cb41-26"><a href="#cb41-26" aria-hidden="true" tabindex="-1"></a><span class="op">}</span></span></code></pre></div>
 </body>
 </html>
