@@ -56,6 +56,7 @@ system for this work, as `examples/sdl_skia` shows.
 | [Chip](chip.md) | A compact tag, filter or removable value | `chip`, `chip_group` |
 | [Dialog](dialog.md) | A message with buttons | `dialog` |
 | [Diagnostics list](diagnostics_list.md) | Errors, warnings and notes | `diagnostics_list` |
+| [Grid view](grid_view.md) | Many items in a grid of square cells | `grid_view` |
 | [Image view](image_view.md) | One picture | `image_view` |
 | [Label](label.md) | One line of text | `label` |
 | [Menu](menu.md) | A list of commands | `menu`, `menu_item` |
