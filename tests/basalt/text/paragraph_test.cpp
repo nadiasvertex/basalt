@@ -501,6 +501,62 @@ TEST_CASE("line padding adds room below the text of every line", "[paragraph][ga
   CHECK_FALSE(gap_free);
 }
 
+TEST_CASE("an indent moves every line and narrows the wrapping width", "[paragraph][indent]") {
+  auto &fonts = require_latin();
+  auto const text = std::string{"aaaa bbbb cccc dddd eeee"};
+  auto const limit = width_of(fonts, "aaaa bbbb") + 2;
+  auto const plain = make(fonts, text, options(limit));
+  auto opts = options(limit);
+  opts.indent = width_of(fonts, "aaaa ");
+  auto const indented = make(fonts, text, opts);
+  REQUIRE(plain.lines().size() > 1);
+  CHECK(indented.lines().size() > plain.lines().size());
+  for (auto const &line : indented.lines()) {
+    CHECK_THAT(line.x, WithinAbs(opts.indent, 0.01));
+    CHECK(line.x + line.width <= limit + 0.1F + width_of(fonts, " "));
+  }
+  CHECK_THAT(indented.caret_rect(0).left(), WithinAbs(opts.indent, 0.01));
+  auto const widest = std::ranges::max(indented.lines(), {}, &paragraph_line::width).width;
+  CHECK_THAT(indented.extent().width, WithinAbs(opts.indent + widest, 0.01));
+}
+
+TEST_CASE("a point in the indent hits the start of its line", "[paragraph][indent]") {
+  auto &fonts = require_latin();
+  auto opts = options(width_of(fonts, "aaaa bbbb") + 2);
+  opts.indent = 30.0F;
+  auto const p = make(fonts, "aaaa bbbb cccc", opts);
+  REQUIRE(p.lines().size() > 1);
+  auto const second = p.lines()[1];
+  auto const hit = p.hit_test({5, second.y + 3});
+  CHECK(hit.offset == second.begin);
+  CHECK(hit.line == 1);
+  CHECK_FALSE(hit.inside);
+}
+
+TEST_CASE("an indent leaves alignment to the remaining width", "[paragraph][indent]") {
+  auto &fonts = require_latin();
+  auto const w = width_of(fonts, "abc");
+  auto opts = options(500);
+  opts.indent = 40.0F;
+  opts.align = text_align::end;
+  CHECK_THAT(make(fonts, "abc", opts).lines()[0].x, WithinAbs(500 - w, 0.01));
+  opts.align = text_align::center;
+  CHECK_THAT(make(fonts, "abc", opts).lines()[0].x, WithinAbs(40 + (460 - w) / 2, 0.01));
+}
+
+TEST_CASE("right-to-left text is indented from the right", "[paragraph][indent]") {
+  auto &fonts = basalt::test::system_fonts();
+  if (!basalt::test::has_coverage(fonts, U'א')) {
+    SKIP("no font covers Hebrew");
+  }
+  auto opts = options(500);
+  opts.indent = 40.0F;
+  auto const p = make(fonts, hebrew, opts);
+  REQUIRE(p.lines().size() == 1);
+  CHECK_THAT(p.lines()[0].x + p.lines()[0].width, WithinAbs(460, 0.01));
+  CHECK_THAT(p.caret_rect(0).left(), WithinAbs(460, 0.01));
+}
+
 TEST_CASE("style spans keep scale and rise in a paragraph", "[paragraph]") {
   auto &fonts = require_latin();
   auto opts = options();

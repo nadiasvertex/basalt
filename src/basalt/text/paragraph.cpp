@@ -150,6 +150,7 @@ paragraph::paragraph(text_shaper const &shaper, std::string_view utf8,
   for (auto const &line : lines_) {
     extent_.width = std::max(extent_.width, line.width);
   }
+  extent_.width += std::max(0.0F, options.indent);
   extent_.height = lines_.empty() ? 0 : lines_.back().y + lines_.back().height;
 }
 
@@ -213,22 +214,22 @@ auto apply_line_metrics(paragraph_line &line, shaped_text const &shaped, float l
   line.baseline = (text_height - (shaped.ascent + shaped.descent)) / 2 + shaped.ascent;
 }
 
-// The x offset of a line of `content` width in the paragraph width, and `hang` of trailing
+// The x offset of a line of `content` width in the `available` width, and `hang` of trailing
 // spaces that sit on the side the paragraph ends on.
-auto alignment_offset(paragraph_options const &options, float content, float hang,
+auto alignment_offset(text_align align, float available, float content, float hang,
                       bool right_to_left) -> float {
-  if (!std::isfinite(options.max_width)) {
+  if (!std::isfinite(available)) {
     return 0.0F;
   }
-  auto const towards_start = options.align == text_align::start;
-  auto const towards_end = options.align == text_align::end;
+  auto const towards_start = align == text_align::start;
+  auto const towards_end = align == text_align::end;
   auto const left_aligned = (towards_start && !right_to_left) || (towards_end && right_to_left);
   auto const right_aligned = (towards_start && right_to_left) || (towards_end && !right_to_left);
-  auto left = (options.max_width - content) / 2;
+  auto left = (available - content) / 2;
   if (left_aligned) {
     left = 0;
   } else if (right_aligned) {
-    left = options.max_width - content;
+    left = available - content;
   }
   return left - (right_to_left ? hang : 0);
 }
@@ -255,6 +256,8 @@ auto apply_gaps(glyph_run &run, std::span<inline_gap const> gaps, float &shift) 
 auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf8,
                                  paragraph_options const &options) -> void {
   auto const limited = options.wrap && std::isfinite(options.max_width);
+  auto const indent = std::max(0.0F, options.indent);
+  auto const available = std::max(0.0F, options.max_width - indent);
   auto const breaks = limited ? break_opportunities(utf8, graphemes_) : std::vector<std::size_t>{};
   auto const trim_spaces = [&](std::size_t begin, std::size_t end) {
     while (end > begin) {
@@ -281,7 +284,7 @@ auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf
              gap_total(gaps_, begin, trimmed, trimmed == hard.end);
     };
     auto const fits = [&](std::size_t begin, std::size_t end) {
-      return measure(begin, end) <= options.max_width + width_epsilon;
+      return measure(begin, end) <= available + width_epsilon;
     };
 
     auto start = hard.begin;
@@ -313,7 +316,9 @@ auto paragraph::break_into_lines(text_shaper const &shaper, std::string_view utf
         }
       }
       auto const content = line.width - hang;
-      line.x = alignment_offset(options, content, hang, (level & 1U) != 0);
+      auto const right_to_left = (level & 1U) != 0;
+      line.x = alignment_offset(options.align, available, content, hang, right_to_left) +
+               (right_to_left ? 0.0F : indent);
 
       line.runs.reserve(shaped.runs.size());
       auto shift = 0.0F;

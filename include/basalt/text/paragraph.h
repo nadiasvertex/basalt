@@ -64,6 +64,9 @@ struct paragraph_options {
   // Space added below every line, for content the owner draws between lines. It is part of the
   // line's height; the text sits at the top of the line.
   float line_padding = 0;
+  // Room before every line on the start side (the left in left-to-right text), for content the
+  // owner draws there, such as a list marker. Lines wrap within `max_width` less the indent.
+  float indent = 0;
 };
 
 // One visual line. Offsets are UTF-8 byte offsets into the paragraph text.
