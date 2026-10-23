@@ -54,9 +54,11 @@ system for this work, as `examples/sdl_skia` shows.
 | [Button](button.md) | An action | `button` |
 | [Checkbox](checkbox.md) | An independent choice, alone or in a group | `checkbox`, `checkbox_group` |
 | [Chip](chip.md) | A compact tag, filter or removable value | `chip`, `chip_group` |
+| [Collection view](collection_view.md) | A virtual grid of widgets for large collections | `collection_view`, `grid_layout` |
 | [Dialog](dialog.md) | A message with buttons | `dialog` |
 | [Diagnostics list](diagnostics_list.md) | Errors, warnings and notes | `diagnostics_list` |
 | [Grid view](grid_view.md) | Many items in a grid of square cells | `grid_view` |
+| [Image tile](image_tile.md) | A picture cell with a caption and badges | `image_tile` |
 | [Image view](image_view.md) | One picture | `image_view` |
 | [Label](label.md) | One line of text | `label` |
 | [Menu](menu.md) | A list of commands | `menu`, `menu_item` |
@@ -71,6 +73,7 @@ system for this work, as `examples/sdl_skia` shows.
 | [Scroll view](scroll_view.md) | A window onto larger content | `scroll_view` |
 | [Select](select.md) | A value chosen from a list | `select` |
 | [Separator](separator.md) | A line between groups | `separator` |
+| [Slider](slider.md) | A number chosen from a range | `slider` |
 | [Split view](split_view.md) | Two panes and a divider | `split_view`, `splitter` |
 | [Stack](stack.md) | Layers of children | `stack` |
 | [Status bar](status_bar.md) | Facts along the bottom of a window | `status_bar` |

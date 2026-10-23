@@ -53,9 +53,11 @@ set(WIDGET_EXAMPLES
   button
   checkbox
   chip
+  collection_view
   diagnostics_list
   dialog
   grid_view
+  image_tile
   image_view
   label
   menu
@@ -70,6 +72,7 @@ set(WIDGET_EXAMPLES
   scroll_view
   select
   separator
+  slider
   split_view
   stack
   status_bar

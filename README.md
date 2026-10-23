@@ -23,7 +23,8 @@ The library has three layers.
 - **Widgets:** box, stack, scroll view and scroll bar, split view and splitter, label, button, menu
   and menu bar, tabs, text field, text line, status bar, progress bar, diagnostics list, separator,
   image view, dialog, palette, overlay host, toggle, checkbox and checkbox group, and radio button
-  and radio group, chip and chip group, select, popover, accordion, avatar, navigation bar, uploader, tooltip, tree view, and grid view.
+  and radio group, slider, chip and chip group, select, popover, accordion, avatar, navigation bar,
+  uploader, tooltip, tree view, grid view, collection view and image tile.
 
 `basalt/basalt.h` includes every public header.
 

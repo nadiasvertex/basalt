@@ -12,13 +12,18 @@
 #include "basalt/text/text_layout.h"
 #include "basalt/widget_painter.h"
 #include "basalt/widgets/box.h"
+#include "basalt/widgets/collection_view.h"
+#include "basalt/widgets/image_tile.h"
 #include "basalt/widgets/label.h"
 #include "basalt/widgets/select.h"
 #include "basalt/widgets/text_field.h"
 #include "basalt/widgets/text_line.h"
 
 #include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <vector>
 
 #include "text/font_support.h"
 #include "ui_fixture.h"
@@ -224,4 +229,56 @@ TEST_CASE("accessibility", "[benchmark]") {
   s.warm();
 
   BENCHMARK("build the accessibility tree") { return s.f.semantics().size(); };
+}
+
+// A grid of 50,000 picture tiles in a window of about 20 visible rows. The tiles share one image,
+// so the measurements cover the grid's layout, cell reuse and painting, not image decoding.
+TEST_CASE("collection_view", "[benchmark]") {
+  require_optimized_build();
+  ui f({1200, 800});
+  auto const shared = raster_image::create(8, 8, std::vector<std::uint8_t>(8 * 8 * 4, 128));
+  auto &grid = f.tree.emplace_root<collection_view>("Photos");
+  grid.set_cell_size(fixed(100), fixed(100));
+  grid.set_gap(fixed(8));
+  grid.set_cell_factory([&](std::size_t index, std::unique_ptr<widget> recycled) {
+    std::unique_ptr<image_tile> tile;
+    if (recycled != nullptr) {
+      tile.reset(static_cast<image_tile *>(recycled.release()));
+    } else {
+      tile = std::make_unique<image_tile>();
+    }
+    tile->set_image(shared);
+    tile->set_selected(index % 7 == 0);
+    return tile;
+  });
+  grid.set_item_count(50'000);
+  f.layout();
+  (void)f.commands();
+  REQUIRE(grid.realized_items().size() > 100);
+  REQUIRE(f.commands().size() > 100);
+
+  BENCHMARK("paint, nothing changed") { return f.commands().size(); };
+
+  float offset = 0;
+  BENCHMARK("scroll by 60 pixels, layout and paint") {
+    offset += 60;
+    grid.set_scroll_offset(offset);
+    f.layout();
+    return f.commands().size();
+  };
+
+  bool far = false;
+  BENCHMARK("jump across the whole grid, layout and paint") {
+    far = !far;
+    grid.set_scroll_offset(far ? 200'000.0F : 0.0F);
+    f.layout();
+    return f.commands().size();
+  };
+
+  BENCHMARK("change the count, layout and paint") {
+    grid.set_item_count(far ? 50'000 : 49'999);
+    far = !far;
+    f.layout();
+    return f.commands().size();
+  };
 }

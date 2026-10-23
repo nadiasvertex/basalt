@@ -28,9 +28,12 @@ add_library(basalt STATIC
   basalt/widgets/checkbox.cpp
   basalt/widgets/chip.cpp
   basalt/widgets/choice_control.cpp
+  basalt/widgets/collection_view.cpp
   basalt/widgets/dialog.cpp
   basalt/widgets/diagnostics_list.cpp
   basalt/widgets/field_text.cpp
+  basalt/widgets/grid_layout.cpp
+  basalt/widgets/image_tile.cpp
   basalt/widgets/image_view.cpp
   basalt/widgets/label.cpp
   basalt/widgets/menu.cpp
@@ -42,6 +45,7 @@ add_library(basalt STATIC
   basalt/widgets/scroll_bar.cpp
   basalt/widgets/scroll_view.cpp
   basalt/widgets/separator.cpp
+  basalt/widgets/slider.cpp
   basalt/widgets/split_view.cpp
   basalt/widgets/splitter.cpp
   basalt/widgets/stack.cpp

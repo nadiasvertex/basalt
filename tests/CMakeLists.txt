@@ -44,6 +44,10 @@ add_executable(basalt_tests
   basalt/palette_test.cpp
   basalt/popover_test.cpp
   basalt/progress_bar_test.cpp
+  basalt/slider_test.cpp
+  basalt/grid_layout_test.cpp
+  basalt/collection_view_test.cpp
+  basalt/image_tile_test.cpp
   basalt/tooltip_test.cpp
   basalt/tree_view_test.cpp
   basalt/grid_view_test.cpp
