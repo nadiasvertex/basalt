@@ -45,6 +45,7 @@
 #include "basalt/widgets/diagnostics_list.h"
 #include "basalt/widgets/dialog.h"
 #include "basalt/widgets/field_text.h"
+#include "basalt/widgets/grid_view.h"
 #include "basalt/widgets/hover_delay.h"
 #include "basalt/widgets/image_view.h"
 #include "basalt/widgets/label.h"

@@ -55,6 +55,7 @@ set(WIDGET_EXAMPLES
   chip
   diagnostics_list
   dialog
+  grid_view
   image_view
   label
   menu
