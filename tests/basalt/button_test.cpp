@@ -103,6 +103,36 @@ TEST_CASE("a button is a named button with press and focus actions", "[button][a
   REQUIRE(a11y::audit(snapshot).empty());
 }
 
+TEST_CASE("an accessible name replaces the label for assistive technology",
+          "[button][accessibility]") {
+  fixture f;
+  f.target->set_accessible_name("Format: Save");
+  auto const snapshot = f.f.semantics();
+  auto const *node = snapshot.find(f.target->id());
+  REQUIRE(node != nullptr);
+  REQUIRE(node->semantics.name == "Format: Save");
+  REQUIRE(f.target->label() == "Save");
+  REQUIRE_FALSE(node->semantics.checked.has_value());
+}
+
+TEST_CASE("a toggled button reports checked or unchecked", "[button][accessibility]") {
+  fixture f;
+  f.target->set_toggled(true);
+  {
+    auto const snapshot = f.f.semantics();
+    auto const *node = snapshot.find(f.target->id());
+    REQUIRE(node != nullptr);
+    REQUIRE(node->semantics.checked == a11y::check_state::checked);
+  }
+  f.target->set_toggled(false);
+  {
+    auto const snapshot = f.f.semantics();
+    auto const *node = snapshot.find(f.target->id());
+    REQUIRE(node != nullptr);
+    REQUIRE(node->semantics.checked == a11y::check_state::unchecked);
+  }
+}
+
 TEST_CASE("a button paints its fill by variant and state", "[button][paint]") {
   fixture f;
   auto const fill_of = [&] {

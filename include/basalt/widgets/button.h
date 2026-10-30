@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 
 namespace basalt {
@@ -39,6 +40,13 @@ public:
   // Announced after the name, such as "Ctrl+S".
   [[nodiscard]] auto shortcut() const -> std::string const & { return shortcut_; }
   auto set_shortcut(std::string shortcut) -> void;
+  // What assistive technology calls the button when the label is shortened, such as "Bold" for a
+  // toolbar button whose command is "Format: Bold". Empty means the label.
+  [[nodiscard]] auto accessible_name() const -> std::string const & { return accessible_name_; }
+  auto set_accessible_name(std::string name) -> void { accessible_name_ = std::move(name); }
+  // The state of a toggle button, announced as checked or unchecked. Empty for a plain button.
+  [[nodiscard]] auto toggled() const -> std::optional<bool> { return toggled_; }
+  auto set_toggled(std::optional<bool> toggled) -> void { toggled_ = toggled; }
   auto set_on_press(std::function<void()> on_press) -> void { on_press_ = std::move(on_press); }
 
   // Calls the handler as a click would. False when the button is disabled.
@@ -56,6 +64,8 @@ private:
   text_line line_;
   button_variant variant_ = button_variant::secondary;
   std::string shortcut_;
+  std::string accessible_name_;
+  std::optional<bool> toggled_;
   alignment alignment_ = alignment::center;
   std::function<void()> on_press_;
 };

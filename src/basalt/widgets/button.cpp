@@ -88,7 +88,10 @@ auto button::press() -> bool {
 auto button::accessibility_info() const -> accessibility::info {
   accessibility::info details;
   details.kind = accessibility::role::button;
-  details.name = line_.text();
+  details.name = accessible_name_.empty() ? line_.text() : accessible_name_;
+  if (toggled_) {
+    details.checked = *toggled_ ? accessibility::check_state::checked : accessibility::check_state::unchecked;
+  }
   details.keyboard_shortcut = shortcut_;
   details.actions = {accessibility::action::press, accessibility::action::focus};
   return details;
