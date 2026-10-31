@@ -49,6 +49,10 @@ public:
   [[nodiscard]] auto role() const -> text_role { return role_; }
   auto set_role(text_role role) -> bool;
 
+  // Draws the text in `family` instead of the role's family. `family` must have static lifetime,
+  // like `text_style::family`. Empty restores the role's family.
+  auto set_family(std::string_view family) -> bool;
+
   // The natural size in layout pixels: the shaped advance by the line height.
   [[nodiscard]] auto measure(widget const &owner) const -> basalt::size;
 
@@ -63,7 +67,7 @@ private:
   struct cache {
     text::text_shaper const *shaper = nullptr;
     text_style style;
-    // Cleared by `set_text` and `set_role`, the only mutators of the shaped input.
+    // Cleared by `set_text`, `set_role` and `set_family`, the only mutators of the shaped input.
     bool valid = false;
     text::shaped_text shaped;
     float line_height = 0;
@@ -73,6 +77,7 @@ private:
 
   std::string text_;
   text_role role_ = text_role::body;
+  std::string_view family_;
   mutable cache cache_;
 };
 

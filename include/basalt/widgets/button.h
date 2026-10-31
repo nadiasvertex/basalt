@@ -1,5 +1,6 @@
 #pragma once
 
+#include "basalt/icon_ids.h"
 #include "basalt/layout.h"
 #include "basalt/widget.h"
 #include "basalt/widgets/text_line.h"
@@ -34,6 +35,11 @@ public:
   auto set_label(std::string label) -> void;
   [[nodiscard]] auto variant() const -> button_variant { return variant_; }
   auto set_variant(button_variant variant) -> void;
+  // A glyph drawn before the label, or alone when the label is empty. It is drawn in the icon font,
+  // which the application must add to the tree's font manager (see `icon_font_data`). An icon
+  // without a label needs an accessible name.
+  [[nodiscard]] auto icon() const -> basalt::icon { return icon_; }
+  auto set_icon(basalt::icon i) -> void;
   // Where the label sits in the button; centered by default.
   [[nodiscard]] auto label_alignment() const -> alignment { return alignment_; }
   auto set_label_alignment(alignment a) -> void;
@@ -61,7 +67,12 @@ protected:
   auto on_accessibility_action(accessibility::action_request const &request) -> bool override;
 
 private:
+  [[nodiscard]] auto has_icon() const -> bool { return icon_ != basalt::icon::none; }
+  [[nodiscard]] auto shows_label() const -> bool { return !line_.text().empty(); }
+
   text_line line_;
+  text_line icon_line_;
+  basalt::icon icon_ = basalt::icon::none;
   button_variant variant_ = button_variant::secondary;
   std::string shortcut_;
   std::string accessible_name_;

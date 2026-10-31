@@ -11,6 +11,8 @@
 #include "basalt/file_dialog.h"
 #include "basalt/focus.h"
 #include "basalt/geometry.h"
+#include "basalt/icon.h"
+#include "basalt/icon_ids.h"
 #include "basalt/image.h"
 #include "basalt/index_range.h"
 #include "basalt/input.h"

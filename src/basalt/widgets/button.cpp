@@ -1,6 +1,7 @@
 #include "basalt/widgets/button.h"
 
 #include "basalt/event_router.h"
+#include "basalt/icon.h"
 #include "basalt/widget_tree.h"
 
 #include <algorithm>
@@ -50,13 +51,23 @@ auto colors_for_button(theme const &t, button_variant variant, control_state sta
 } // namespace
 
 button::button(std::string label, std::function<void()> on_press)
-    : line_(std::move(label), text_role::body_strong), on_press_(std::move(on_press)) {
+    : line_(std::move(label), text_role::body_strong), icon_line_({}, text_role::body_strong),
+      on_press_(std::move(on_press)) {
+  icon_line_.set_family(icon_font_family);
   set_focus_policy(focus_policy::strong);
   set_minimum_target(true);
 }
 
 auto button::set_label(std::string label) -> void {
   if (line_.set_text(std::move(label))) {
+    invalidate_content();
+  }
+}
+
+auto button::set_icon(basalt::icon i) -> void {
+  if (i != icon_) {
+    icon_ = i;
+    icon_line_.set_text(icon_text(i));
     invalidate_content();
   }
 }
@@ -107,10 +118,23 @@ auto button::on_event(event_context &, event const &e) -> bool {
 
 auto button::on_measure(constraints const &) const -> basalt::size {
   auto const &sizes = theme().sizes;
-  basalt::size const text = line_.measure(*this);
+  basalt::size text = line_.measure(*this);
   float const padding = resolve(sizes.inset_horizontal_button) * 2;
-  return {std::max(text.width + padding, resolve(sizes.dimension_width_element_min)),
-          std::max(text.height, resolve(sizes.dimension_height_element_min))};
+  float const min_width = resolve(sizes.dimension_width_element_min);
+  float const min_height = resolve(sizes.dimension_height_element_min);
+  if (has_icon()) {
+    basalt::size const glyph = icon_line_.measure(*this);
+    float const gap = shows_label() ? resolve(sizes.gap_horizontal_shape_text) : 0;
+    text = {glyph.width + gap + (shows_label() ? text.width : 0),
+            std::max(glyph.height, text.height)};
+  }
+  basalt::size const wanted{std::max(text.width + padding, min_width),
+                            std::max(text.height, min_height)};
+  if (has_icon() && !shows_label()) {
+    float const side = std::max(wanted.width, wanted.height);
+    return {side, side};
+  }
+  return wanted;
 }
 
 auto button::on_paint(render_context &context) const -> void {
@@ -130,9 +154,24 @@ auto button::on_paint(render_context &context) const -> void {
                                 width);
   }
   float const edge = resolve(t.sizes.inset_horizontal_button);
-  line_.draw_in(context, *this,
-                alignment_ == alignment::center ? area : inset(area, insets::symmetric(edge, 0)),
-                colors.text, alignment_, alignment::center);
+  rect const content =
+      alignment_ == alignment::center ? area : inset(area, insets::symmetric(edge, 0));
+  if (!has_icon()) {
+    line_.draw_in(context, *this, content, colors.text, alignment_, alignment::center);
+    return;
+  }
+  float const glyph_width = icon_line_.measure(*this).width;
+  float const gap = shows_label() ? resolve(t.sizes.gap_horizontal_shape_text) : 0;
+  float const label_width = shows_label() ? line_.measure(*this).width : 0;
+  float const left = content.left() +
+                     align_offset(alignment_, content.width() - (glyph_width + gap + label_width));
+  icon_line_.draw_in(context, *this, {{left, content.top()}, {glyph_width, content.height()}},
+                     colors.text, alignment::start, alignment::center);
+  if (shows_label()) {
+    line_.draw_in(context, *this,
+                  {{left + glyph_width + gap, content.top()}, {label_width, content.height()}},
+                  colors.text, alignment::start, alignment::center);
+  }
 }
 
 } // namespace basalt

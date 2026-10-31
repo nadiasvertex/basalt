@@ -12,6 +12,9 @@ Pass a label and an optional press handler to the constructor.
 - `set_variant` picks `primary`, `secondary`, `tertiary` or `danger`. Use one primary button for
   the main action of a view. The default is `secondary`.
 - `set_label` changes the text.
+- `set_icon` shows a `basalt::icon` before the label, or alone when the label is empty. The
+  application must add the icon font to the font manager (see the README, "Icons"). A button with
+  only an icon needs `set_accessible_name`.
 - `set_label_alignment` places the label inside the button. The default is `center`.
 - `set_shortcut` sets a text such as `Ctrl+S`. Assistive technology announces it. Basalt does not
   bind the key.

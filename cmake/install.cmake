@@ -23,6 +23,8 @@ install(FILES
   "${PROJECT_BINARY_DIR}/basaltConfigVersion.cmake"
   DESTINATION ${BASALT_CMAKE_DIR})
 install(FILES LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/basalt)
+install(FILES third_party/phosphor/LICENSE DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/basalt
+  RENAME phosphor-LICENSE)
 if(BASALT_HARFBUZZ STREQUAL "bundled")
   install(FILES "${harfbuzz_SOURCE_DIR}/COPYING" DESTINATION ${CMAKE_INSTALL_DATADIR}/doc/basalt
     RENAME harfbuzz-COPYING)

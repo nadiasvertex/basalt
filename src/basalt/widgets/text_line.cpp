@@ -51,10 +51,23 @@ auto text_line::set_role(text_role role) -> bool {
   return true;
 }
 
+auto text_line::set_family(std::string_view family) -> bool {
+  if (family == family_) {
+    return false;
+  }
+  family_ = family;
+  cache_.valid = false;
+  return true;
+}
+
 auto text_line::shaped(widget const &owner) const -> cache const & {
   widget_tree const *const tree = owner.tree();
   text::text_shaper const *const shaper = tree != nullptr ? tree->text_shaper() : nullptr;
-  text_style const style = to_layout(text_style_for(owner.theme(), role_), owner.scale());
+  text_style role_style = text_style_for(owner.theme(), role_);
+  if (!family_.empty()) {
+    role_style = with_family(role_style, family_);
+  }
+  text_style const style = to_layout(role_style, owner.scale());
   if (cache_.valid && cache_.shaper == shaper && cache_.style == style) {
     return cache_;
   }

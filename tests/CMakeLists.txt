@@ -8,6 +8,7 @@ add_executable(basalt_tests
   basalt/event_router_test.cpp
   basalt/focus_test.cpp
   basalt/geometry_test.cpp
+  basalt/icon_test.cpp
   basalt/paint_test.cpp
   basalt/input_test.cpp
   basalt/units_test.cpp

@@ -151,6 +151,23 @@ copies.
 `tools/basalt_tokens` from the Cubit DTCG token files and committed. Regenerate it with
 `just tokens <tokens directory>`, and do not edit it by hand.
 
+## Icons
+
+Basalt includes a small icon font, a subset of [Phosphor](https://phosphoricons.com) (regular
+weight, MIT license). `basalt::icon` names each icon. `button::set_icon` shows an icon before the
+label, or alone when the label is empty. An icon-only button needs an accessible name, or the
+accessibility audit reports it.
+
+The application must register the font. Call `font_manager::add_data(icon_font_data())` on the
+font manager that the text shaper uses. Text that is not an icon never asks for this family.
+
+To add an icon, add a line to `tools/icons/icons.txt` with the `basalt::icon` name and the Phosphor
+name. Then run `tools/icons/subset_icons.py <directory>`, where the directory holds a release of
+[phosphor-icons/web](https://github.com/phosphor-icons/web). The script needs the Python package
+`fonttools`. It rewrites `third_party/phosphor/Phosphor.ttf`, `generated/basalt/icon_ids.h`,
+`src/basalt/icon_table.inc` and `src/basalt/icon_font.inc`. Commit all of them. Do not edit them
+by hand. The current font comes from release 2.1.2.
+
 ## Tests
 
 The text tests that only need Latin script use Noto Sans from `tests/data/fonts`, so they give the
@@ -159,7 +176,8 @@ machine's fonts, and skip when a script they need is not installed.
 
 ## License
 
-Basalt is under the Apache License 2.0; see `LICENSE`. In the default bundled mode the library
-contains HarfBuzz, which is under an MIT-style license. Installs and release archives include both
-licenses in `share/doc/basalt`. The fonts in `tests/data/fonts` are under the SIL Open Font License;
+Basalt is under the Apache License 2.0; see `LICENSE`. The library contains the Phosphor icon font,
+which is under the MIT license. In the default bundled mode it also contains HarfBuzz, which is
+under an MIT-style license. Installs and release archives include these licenses in
+`share/doc/basalt`. The fonts in `tests/data/fonts` are under the SIL Open Font License;
 see `tests/data/fonts/OFL.txt`. They are used only by the tests and are not installed.

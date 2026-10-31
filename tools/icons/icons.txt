@@ -1,0 +1,15 @@
+# One icon per line: the basalt::icon name, then the Phosphor icon name.
+# After a change, run tools/icons/subset_icons.py (see README.md, "Icons").
+bold text-b
+italic text-italic
+underline text-underline
+image image
+settings gear
+search magnifying-glass
+save floppy-disk
+open folder-open
+undo arrow-counter-clockwise
+redo arrow-clockwise
+close x
+check check
+expand caret-down

@@ -7,6 +7,7 @@ add_library(basalt STATIC
   basalt/focus.cpp
   basalt/focus_painter.cpp
   basalt/geometry.cpp
+  basalt/icon.cpp
   basalt/image.cpp
   basalt/input.cpp
   basalt/units.cpp
