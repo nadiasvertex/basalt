@@ -13,3 +13,4 @@ redo arrow-clockwise
 close x
 check check
 expand caret-down
+workspace squares-four

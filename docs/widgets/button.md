@@ -15,6 +15,9 @@ Pass a label and an optional press handler to the constructor.
 - `set_icon` shows a `basalt::icon` before the label, or alone when the label is empty. The
   application must add the icon font to the font manager (see the README, "Icons"). A button with
   only an icon needs `set_accessible_name`.
+- `set_tooltip` sets text that appears after the pointer rests on the button or it takes visible
+  keyboard focus. An icon-only button shows its accessible name when no tooltip is set. A button
+  needs an `overlay_host` above it to show one.
 - `set_label_alignment` places the label inside the button. The default is `center`.
 - `set_shortcut` sets a text such as `Ctrl+S`. Assistive technology announces it. Basalt does not
   bind the key.

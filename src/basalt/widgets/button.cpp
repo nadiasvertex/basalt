@@ -60,6 +60,7 @@ button::button(std::string label, std::function<void()> on_press)
 
 auto button::set_label(std::string label) -> void {
   if (line_.set_text(std::move(label))) {
+    refresh_tooltip();
     invalidate_content();
   }
 }
@@ -68,6 +69,7 @@ auto button::set_icon(basalt::icon i) -> void {
   if (i != icon_) {
     icon_ = i;
     icon_line_.set_text(icon_text(i));
+    refresh_tooltip();
     invalidate_content();
   }
 }
@@ -85,6 +87,39 @@ auto button::set_label_alignment(alignment a) -> void {
     invalidate_paint();
   }
 }
+
+auto button::set_accessible_name(std::string name) -> void {
+  accessible_name_ = std::move(name);
+  refresh_tooltip();
+}
+
+auto button::set_tooltip(std::string text) -> void {
+  tooltip_text_ = std::move(text);
+  refresh_tooltip();
+}
+
+auto button::tooltip_shown() const -> std::string {
+  if (!tooltip_text_.empty()) {
+    return tooltip_text_;
+  }
+  return has_icon() && !shows_label() ? accessible_name_ : std::string{};
+}
+
+auto button::refresh_tooltip() -> void { tooltip_.set_text(*this, tooltip_shown()); }
+
+auto button::on_interaction_changed(interaction_state const &previous) -> void {
+  widget::on_interaction_changed(previous);
+  refresh_tooltip();
+  if (tooltip_.update(*this)) {
+    request_animation_frame();
+  }
+}
+
+auto button::on_animation_frame(std::chrono::nanoseconds elapsed) -> bool {
+  return tooltip_.advance(*this, elapsed);
+}
+
+auto button::on_detached() -> void { tooltip_.hide(*this); }
 
 auto button::set_shortcut(std::string shortcut) -> void { shortcut_ = std::move(shortcut); }
 

@@ -21,6 +21,7 @@ enum class icon : std::uint8_t {
   close,
   check,
   expand,
+  workspace,
 };
 
 } // namespace basalt

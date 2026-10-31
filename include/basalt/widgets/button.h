@@ -4,7 +4,9 @@
 #include "basalt/layout.h"
 #include "basalt/widget.h"
 #include "basalt/widgets/text_line.h"
+#include "basalt/widgets/tooltip.h"
 
+#include <chrono>
 #include <cstdint>
 #include <functional>
 #include <optional>
@@ -49,7 +51,11 @@ public:
   // What assistive technology calls the button when the label is shortened, such as "Bold" for a
   // toolbar button whose command is "Format: Bold". Empty means the label.
   [[nodiscard]] auto accessible_name() const -> std::string const & { return accessible_name_; }
-  auto set_accessible_name(std::string name) -> void { accessible_name_ = std::move(name); }
+  auto set_accessible_name(std::string name) -> void;
+  // Shown after the pointer rests on the button or it takes visible keyboard focus. Empty means
+  // the accessible name when the button has an icon and no label, and no tooltip otherwise.
+  [[nodiscard]] auto tooltip() const -> std::string const & { return tooltip_text_; }
+  auto set_tooltip(std::string text) -> void;
   // The state of a toggle button, announced as checked or unchecked. Empty for a plain button.
   [[nodiscard]] auto toggled() const -> std::optional<bool> { return toggled_; }
   auto set_toggled(std::optional<bool> toggled) -> void { toggled_ = toggled; }
@@ -65,10 +71,15 @@ protected:
   auto on_paint(render_context &context) const -> void override;
   [[nodiscard]] auto on_measure(constraints const &limits) const -> basalt::size override;
   auto on_accessibility_action(accessibility::action_request const &request) -> bool override;
+  auto on_interaction_changed(interaction_state const &previous) -> void override;
+  auto on_animation_frame(std::chrono::nanoseconds elapsed) -> bool override;
+  auto on_detached() -> void override;
 
 private:
   [[nodiscard]] auto has_icon() const -> bool { return icon_ != basalt::icon::none; }
   [[nodiscard]] auto shows_label() const -> bool { return !line_.text().empty(); }
+  [[nodiscard]] auto tooltip_shown() const -> std::string;
+  auto refresh_tooltip() -> void;
 
   text_line line_;
   text_line icon_line_;
@@ -76,6 +87,8 @@ private:
   button_variant variant_ = button_variant::secondary;
   std::string shortcut_;
   std::string accessible_name_;
+  std::string tooltip_text_;
+  tooltip_anchor tooltip_;
   std::optional<bool> toggled_;
   alignment alignment_ = alignment::center;
   std::function<void()> on_press_;

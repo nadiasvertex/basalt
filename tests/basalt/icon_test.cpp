@@ -44,6 +44,7 @@ TEST_CASE("an icon name converts back to the icon", "[icon]") {
     CHECK(icon_from_name(icon_name(i)) == i);
   }
   CHECK(icon_from_name("bold") == icon::bold);
+  CHECK(icon_from_name("workspace") == icon::workspace);
 }
 
 TEST_CASE("an unknown icon name gives none", "[icon]") {

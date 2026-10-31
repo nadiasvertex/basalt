@@ -3,8 +3,10 @@
 #include "basalt/icon.h"
 #include "basalt/widgets/box.h"
 #include "basalt/widgets/button.h"
+#include "basalt/widgets/overlay_host.h"
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 
 #include "text/font_support.h"
@@ -255,4 +257,61 @@ TEST_CASE("a button without an icon paints no icon glyph", "[button][icon][paint
   auto const families = f.painted_families();
   CHECK(families.size() == 1);
   CHECK(std::ranges::count(families, std::string{icon_font_family}) == 0);
+}
+
+namespace {
+
+// A button in an overlay host, so a tooltip has somewhere to appear.
+struct tooltip_fixture {
+  tooltip_fixture() {
+    f.tree.set_text_shaper(&shaper);
+    host = &f.tree.emplace_root<overlay_host>();
+    auto &content = host->set_content(std::make_unique<box>(axis::horizontal));
+    content.set_cross_alignment(alignment::start);
+    content.set_main_alignment(alignment::start);
+    target = &content.emplace_child<button>();
+    target->set_icon(icon::bold);
+    target->set_accessible_name("Bold");
+    f.layout();
+  }
+  ~tooltip_fixture() { f.tree.set_text_shaper(nullptr); }
+
+  auto rest_on_button() -> void {
+    f.send(move(target->bounds_in_root().center()));
+    f.advance(std::chrono::milliseconds(800));
+  }
+
+  text::text_shaper shaper{basalt::test::bundled_fonts()};
+  ui f;
+  overlay_host *host = nullptr;
+  button *target = nullptr;
+};
+
+} // namespace
+
+TEST_CASE("an icon-only button shows its accessible name in a tooltip", "[button][tooltip]") {
+  tooltip_fixture f;
+  f.rest_on_button();
+  REQUIRE(f.host->overlay_count() == 1);
+  f.f.send(move({-10, -10}));
+  CHECK(f.host->overlay_count() == 0);
+}
+
+TEST_CASE("an explicit tooltip replaces the accessible name", "[button][tooltip]") {
+  tooltip_fixture f;
+  f.target->set_tooltip("Make the text bold");
+  CHECK(f.target->tooltip() == "Make the text bold");
+  f.rest_on_button();
+  REQUIRE(f.host->overlay_count() == 1);
+}
+
+TEST_CASE("a button with a label has no tooltip unless one is set", "[button][tooltip]") {
+  tooltip_fixture f;
+  f.target->set_label("Bold");
+  f.rest_on_button();
+  CHECK(f.host->overlay_count() == 0);
+  f.f.send(move({-10, -10}));
+  f.target->set_tooltip("Make the text bold");
+  f.rest_on_button();
+  CHECK(f.host->overlay_count() == 1);
 }

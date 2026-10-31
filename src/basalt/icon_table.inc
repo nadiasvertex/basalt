@@ -11,3 +11,4 @@
 {icon::close, "close", 0xE4F6},
 {icon::check, "check", 0xE182},
 {icon::expand, "expand", 0xE136},
+{icon::workspace, "workspace", 0xE464},
